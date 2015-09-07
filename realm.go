@@ -1,9 +1,9 @@
 package rabric
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
-	"encoding/json"
 )
 
 const (
@@ -47,25 +47,35 @@ func (r *Realm) init() {
 	}
 }
 
+// I thought external functions have to be capitalized, and this is called externally.
+// Does that not apply to methods?
 func (r *Realm) handleSession(sess Session, details map[string]interface{}) {
 	c := sess.Receive()
 	// TODO: what happens if the realm is closed?
 
 	for {
-		var msg Message
-		var open bool
+		// var msg Message
+		// var open bool
 
-		select {
-		case msg, open = <-c:
-			if !open {
-				log.Println("lost session:", sess)
-				return
-			}
+		// select {
+		// case msg, open = <-c:
+		// 	if !open {
+		// 		log.Println("lost session:", sess)
+		// 		return
+		// 	}
 
-		case reason := <-sess.kill:
-			logErr(sess.Send(&Goodbye{Reason: reason, Details: make(map[string]interface{})}))
-			log.Printf("kill session %s: %v", sess, reason)
-			// TODO: wait for client Goodbye?
+		// case reason := <-sess.kill:
+		// 	logErr(sess.Send(&Goodbye{Reason: reason, Details: make(map[string]interface{})}))
+		// 	log.Printf("kill session %s: %v", sess, reason)
+		// 	// TODO: wait for client Goodbye?
+		// 	return
+		// }
+
+		msg, ok := handleMessage(sess, c)
+
+		// The connection was closed for some reason
+		if !ok {
+			log.Println("Session closing with status: ", ok)
 			return
 		}
 
@@ -125,6 +135,32 @@ func (r *Realm) handleSession(sess Session, details map[string]interface{}) {
 	}
 }
 
+// receives incoming messages from sessions
+func handleMessage(sess Session, c <-chan Message) (msg Message, ok bool) {
+	// c := sess.Receive()
+	// TODO: what happens if the realm is closed?
+
+	// var msg Message
+	var open bool
+
+	select {
+	case msg, open = <-c:
+		if !open {
+			log.Println("lost session:", sess)
+			return nil, false
+		}
+
+	case reason := <-sess.kill:
+		logErr(sess.Send(&Goodbye{Reason: reason, Details: make(map[string]interface{})}))
+		log.Printf("kill session %s: %v", sess, reason)
+
+		// TODO: wait for client Goodbye?
+		return nil, false
+	}
+
+	return msg, true
+}
+
 func (r Realm) Close() {
 	for _, client := range r.clients {
 		client.kill <- ErrSystemShutdown
@@ -166,7 +202,7 @@ func (r Realm) authenticate(details map[string]interface{}) (Message, error) {
 	// pprint the incoming details
 
 	if b, err := json.MarshalIndent(details, "", "  "); err != nil {
-	    fmt.Println("error:", err)
+		fmt.Println("error:", err)
 	} else {
 		log.Printf(string(b))
 	}
@@ -176,7 +212,7 @@ func (r Realm) authenticate(details map[string]interface{}) (Message, error) {
 	if len(r.Authenticators) == 0 && len(r.CRAuthenticators) == 0 {
 		return &Welcome{}, nil
 	}
-	
+
 	// TODO: this might not always be a []interface{}. Using the JSON unmarshaller it will be,
 	// but we may have serializations that preserve more of the original type.
 	// For now, the tests just explicitly send a []interface{}
