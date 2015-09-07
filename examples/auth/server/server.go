@@ -9,7 +9,7 @@ import (
 	"net/http"
 
 	"github.com/satori/go.uuid"
-	"gopkg.in/jcelliott/turnpike.v2"
+	"github.com/damouse/rabric"
 )
 
 // this is just an example, please don't actually use it
