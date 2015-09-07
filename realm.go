@@ -1,7 +1,7 @@
 package rabric
 
 import (
-	"encoding/json"
+	// "encoding/json"
 	"fmt"
 	"time"
 )
@@ -202,11 +202,11 @@ func (r *Realm) handleAuth(client Peer, details map[string]interface{}) (*Welcom
 func (r Realm) authenticate(details map[string]interface{}) (Message, error) {
 	// pprint the incoming details
 
-	if b, err := json.MarshalIndent(details, "", "  "); err != nil {
-		fmt.Println("error:", err)
-	} else {
-		log.Printf(string(b))
-	}
+	// if b, err := json.MarshalIndent(details, "", "  "); err != nil {
+	// 	fmt.Println("error:", err)
+	// } else {
+	// 	log.Printf(string(b))
+	// }
 
 	// log.Println("details:", details)
 
@@ -305,6 +305,7 @@ func (r *Realm) handleMessage(msg Message, sess Session, details map[string]inte
 		return
 	}
 
+	// No idea what this was meant to do
 	// r.Interceptor.Intercept(sess.Id, &msg, details)
 
 	switch msg := msg.(type) {

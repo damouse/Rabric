@@ -1,44 +1,31 @@
 package rabric
 
 import (
-	"encoding/json"
+	// "encoding/json"
 	"fmt"
-	"github.com/tchap/go-patricia/patricia"
+	// "github.com/tchap/go-patricia/patricia"
 	"sync"
 	"time"
 )
 
-// var defaultWelcomeDetails = map[string]interface{}{
-//     "roles": map[string]struct{}{
-//         "broker": {},
-//         "dealer": {},
-//     },
-// }
-
 type node struct {
-	realms                map[URI]Realm
 	closing               bool
 	closeLock             sync.Mutex
 	sessionOpenCallbacks  []func(uint, string)
 	sessionCloseCallbacks []func(uint, string)
-
-	// "root" is a radix tree for realms and subrealms
-	root *patricia.Trie
+	realms                map[URI]Realm
+	sessionPdid           map[string]string
+	nodes                 map[string]Session
+	forwarding            map[string]Session
+	permissions           map[string]string
 }
 
 // NewDefaultRouter creates a very basic WAMP router.
 func NewNode() Router {
-	log.Println("Creating new Rabric Node")
-
-	trie := patricia.NewTrie()
-	r := &Realm{URI: "pd"}
-	trie.Insert(patricia.Prefix("pd"), r)
-
 	return &node{
 		realms:                make(map[URI]Realm),
 		sessionOpenCallbacks:  []func(uint, string){},
 		sessionCloseCallbacks: []func(uint, string){},
-		root: trie,
 	}
 }
 
@@ -65,28 +52,17 @@ func (r *node) Close() error {
 		realm.Close()
 	}
 
-	// New method: walk the tree and ensure each realm is closed
-
 	return nil
 }
 
+// Shouldn't be called anymore
 func (r *node) RegisterRealm(uri URI, realm Realm) error {
-	// Never called, or shgould never be called
-	log.Println("Asked to register a realm. Ignoring.")
-	// return nil
-
-	if _, ok := r.realms[uri]; ok {
-		return RealmExistsError(uri)
-	}
-
-	realm.init()
-	r.realms[uri] = realm
 	return nil
 }
 
 func (r *node) Accept(client Peer) error {
-	log.Println("Accepting a new connection from ", client)
 
+	// Dont accept new sessions if the node is going down
 	if r.closing {
 		logErr(client.Send(&Abort{Reason: ErrSystemShutdown}))
 		logErr(client.Close())
@@ -98,12 +74,12 @@ func (r *node) Accept(client Peer) error {
 		return err
 	}
 
-	// pprint the incoming details
-	if b, err := json.MarshalIndent(msg, "", "  "); err != nil {
-		fmt.Println("error:", err)
-	} else {
-		log.Printf("%s: %+v", msg.MessageType(), string(b))
-	}
+	// pprint the incoming details. Still needed?
+	// if b, err := json.MarshalIndent(msg, "", "  "); err != nil {
+	// 	fmt.Println("error:", err)
+	// } else {
+	// 	log.Printf("%s: %+v", msg.MessageType(), string(b))
+	// }
 	// log.Printf("%s: %+v", msg.MessageType(), msg)
 
 	hello, _ := msg.(*Hello)
@@ -116,39 +92,16 @@ func (r *node) Accept(client Peer) error {
 		return fmt.Errorf("protocol violation: expected HELLO, received %s", msg.MessageType())
 	}
 
-	// NOT IMPLEMENTED: Authenticate the user based on their provided credentials.
-	// Extract their domain from said credentials. If no realm exists for that domain,
-	// create it and add it to the trie.
-
-	// New implementation: check for presence of realm
-	key := patricia.Prefix(hello.Realm)
-
-	if !r.root.MatchSubtree(key) {
-		log.Println("Realm not found. Opening new realm ", hello.Realm)
-
-		// Create the new realm
-		newRealm := &Realm{URI: hello.Realm}
-		newRealm.init()
-
-		// Insert the realm into the tree
-		r.root.Insert(patricia.Prefix(hello.Realm), newRealm)
-		// log.Println("Created the new realm: ", newRealm)
-	}
-
-	// Extract the correct realm for this key
-	// Sidenote: also an example of a cast... ish
-	realm := r.root.Get(key).(*Realm)
-	// log.Println("Sanity check: new realm for key: ", newRet.URI)
-
 	// Old implementation
-	// realm, _ := r.realms[hello.Realm]
+	realm, exists := r.realms[hello.Realm]
 
-	// if _, ok := r.realms[hello.Realm]; !ok {
-	//     logErr(client.Send(&Abort{Reason: ErrNoSuchRealm}))
-	//     logErr(client.Close())
+	if !exists {
+		log.Println("Domain not found, creating new domain for ", hello.Realm)
 
-	//     return NoSuchRealmError(hello.Realm)
-	// }
+		realm = Realm{URI: hello.Realm}
+		realm.init()
+		r.realms[hello.Realm] = realm
+	}
 
 	// Old implementation: the authentication must occur before fetching the realm
 	welcome, err := realm.handleAuth(client, hello.Details)
@@ -163,13 +116,6 @@ func (r *node) Accept(client Peer) error {
 		logErr(client.Close())
 		return AuthenticationError(err.Error())
 	}
-
-	// No auth, no missing realms. Here is new implmementaton
-	log.Println("Creating session, assigning to realm")
-	// log.Println(r.root)
-
-	// key := patricia.Prefix(hello.Realm)
-	// fmt.Printf("Checking for id %q here? %v\n", key, trie.MatchSubtree(key))
 
 	welcome.Id = NewID()
 
@@ -188,7 +134,8 @@ func (r *node) Accept(client Peer) error {
 		return err
 	}
 
-	log.Println("Established session:", welcome.Id)
+	log.Println("Established session: ", hello.Realm)
+	// log.Println("Established session: ", welcome.Id)
 
 	sess := Session{Peer: client, Id: welcome.Id, kill: make(chan URI, 1)}
 
@@ -197,22 +144,14 @@ func (r *node) Accept(client Peer) error {
 		go callback(uint(sess.Id), string(hello.Realm))
 	}
 
-	log.Println("Details object:", welcome.Details)
-
-	// Does this block on handleSession, then fire off .Close()?
-	// Doesn't really make sense as written. Is there a blocked goroutine
-	// for each session created that waits for the session to terminate?
-	// Not better than having one routing receiving and sending across
-	// a channel?
+	// Start listening on the session
 	go func() {
-		recvSession(realm, sess, welcome.Details)
+		recvSession(&realm, sess, welcome.Details)
+		sess.Close()
 
-		// realm.handleSession(sess, welcome.Details)
-		// sess.Close()
-
-		// for _, callback := range r.sessionCloseCallbacks {
-		// 	go callback(uint(sess.Id), string(hello.Realm))
-		// }
+		for _, callback := range r.sessionCloseCallbacks {
+			go callback(uint(sess.Id), string(hello.Realm))
+		}
 	}()
 
 	return nil
@@ -222,7 +161,8 @@ func (r *node) Accept(client Peer) error {
 // New Content
 ////////////////////////////////////////
 
-// Spin on a session, wait for messages to arrive
+// Spin on a session, wait for messages to arrive. Method does not return
+// until session closes
 func recvSession(realm *Realm, sess Session, details map[string]interface{}) {
 	c := sess.Receive()
 
@@ -236,19 +176,10 @@ func recvSession(realm *Realm, sess Session, details map[string]interface{}) {
 
 		realm.handleMessage(msg, sess, details)
 	}
-
-	sess.Close()
-
-	// for _, callback := range r.sessionCloseCallbacks {
-	// 	go callback(uint(sess.Id), string(hello.Realm))
-	// }
 }
 
+// receive messages from a session
 func sessionRecieve(sess Session, c <-chan Message) (msg Message, ok bool) {
-	// c := sess.Resceive()
-	// TODO: what happens if the realm is closed?
-
-	// var msg Message
 	var open bool
 
 	select {
@@ -270,7 +201,7 @@ func sessionRecieve(sess Session, c <-chan Message) (msg Message, ok bool) {
 }
 
 ////////////////////////////////////////
-// Code I haven't yet seen the user for
+// Code I haven't yet seen the use for
 ////////////////////////////////////////
 
 // GetLocalPeer returns an internal peer connected to the specified realm.
