@@ -38,6 +38,7 @@ type WebsocketServer struct {
 
 	// The serializer to use for text frames. Defaults to JSONSerializer.
 	TextSerializer Serializer
+	
 	// The serializer to use for binary frames. Defaults to JSONSerializer.
 	BinarySerializer Serializer
 }
