@@ -94,7 +94,7 @@ func (r *Realm) handleSession(sess Session, details map[string]interface{}) {
 			continue
 		}
 
-		r.Interceptor.Intercept(sess.Id, &msg, details)
+		// r.Interceptor.Intercept(sess.Id, &msg, details)
 
 		switch msg := msg.(type) {
 		case *Goodbye:
