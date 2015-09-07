@@ -71,7 +71,7 @@ func (r *Realm) handleSession(sess Session, details map[string]interface{}) {
 		// 	return
 		// }
 
-		msg, ok := handleMessage(sess, c)
+		msg, ok := getMessageSession(sess, c)
 
 		// The connection was closed for some reason
 		if !ok {
@@ -136,7 +136,8 @@ func (r *Realm) handleSession(sess Session, details map[string]interface{}) {
 }
 
 // receives incoming messages from sessions
-func handleMessage(sess Session, c <-chan Message) (msg Message, ok bool) {
+//TEMP
+func getMessageSession(sess Session, c <-chan Message) (msg Message, ok bool) {
 	// c := sess.Receive()
 	// TODO: what happens if the realm is closed?
 
@@ -284,3 +285,63 @@ func addAuthMethod(details map[string]interface{}, method string) map[string]int
 // 		"anonymous": nil,
 // 	},
 // }
+
+func (r *Realm) handleMessage(msg Message, sess Session, details map[string]interface{}) {
+
+	log.Printf("[%s] %s: %+v", sess, msg.MessageType(), msg)
+
+	if isAuthz, err := r.Authorizer.Authorize(sess.Id, msg, details); !isAuthz {
+		errMsg := &Error{Type: msg.MessageType()}
+		if err != nil {
+			errMsg.Error = ErrAuthorizationFailed
+			log.Printf("[%s] authorization failed: %v", sess, err)
+		} else {
+			errMsg.Error = ErrNotAuthorized
+			log.Printf("[%s] %s UNAUTHORIZED", sess, msg.MessageType())
+		}
+
+		logErr(sess.Send(errMsg))
+		// continue
+		return
+	}
+
+	// r.Interceptor.Intercept(sess.Id, &msg, details)
+
+	switch msg := msg.(type) {
+	case *Goodbye:
+		logErr(sess.Send(&Goodbye{Reason: ErrGoodbyeAndOut, Details: make(map[string]interface{})}))
+		log.Printf("[%s] leaving: %v", sess, msg.Reason)
+		return
+
+	// Broker messages
+	case *Publish:
+		r.Broker.Publish(sess.Peer, msg)
+	case *Subscribe:
+		r.Broker.Subscribe(sess.Peer, msg)
+	case *Unsubscribe:
+		r.Broker.Unsubscribe(sess.Peer, msg)
+
+	// Dealer messages
+	case *Register:
+		r.Dealer.Register(sess.Peer, msg)
+	case *Unregister:
+		r.Dealer.Unregister(sess.Peer, msg)
+	case *Call:
+		r.Dealer.Call(sess.Peer, msg)
+	case *Yield:
+		r.Dealer.Yield(sess.Peer, msg)
+
+	// Error messages
+	case *Error:
+		if msg.Type == INVOCATION {
+			// the only type of ERROR message the router should receive
+			r.Dealer.Error(sess.Peer, msg)
+		} else {
+			log.Printf("invalid ERROR message received: %v", msg)
+		}
+
+	default:
+		log.Println("Unhandled message:", msg.MessageType())
+	}
+
+}

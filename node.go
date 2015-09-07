@@ -202,14 +202,17 @@ func (r *node) Accept(client Peer) error {
 	// Does this block on handleSession, then fire off .Close()?
 	// Doesn't really make sense as written. Is there a blocked goroutine
 	// for each session created that waits for the session to terminate?
+	// Not better than having one routing receiving and sending across
+	// a channel?
 	go func() {
-		// recvSession(realm, sess, welcome.Details)
-		realm.handleSession(sess, welcome.Details)
-		sess.Close()
+		recvSession(realm, sess, welcome.Details)
 
-		for _, callback := range r.sessionCloseCallbacks {
-			go callback(uint(sess.Id), string(hello.Realm))
-		}
+		// realm.handleSession(sess, welcome.Details)
+		// sess.Close()
+
+		// for _, callback := range r.sessionCloseCallbacks {
+		// 	go callback(uint(sess.Id), string(hello.Realm))
+		// }
 	}()
 
 	return nil
@@ -220,16 +223,28 @@ func (r *node) Accept(client Peer) error {
 ////////////////////////////////////////
 
 // Spin on a session, wait for messages to arrive
-// func recvSession(realm *Realm, sess Session, details map[string]interface{}) {
-// 	realm.handleSession(sess, details.Details)
-// 	sess.Close()
+func recvSession(realm *Realm, sess Session, details map[string]interface{}) {
+	c := sess.Receive()
 
-// 	// for _, callback := range r.sessionCloseCallbacks {
-// 	// 	go callback(uint(sess.Id), string(hello.Realm))
-// 	// }
-// }
+	for {
+		msg, ok := sessionRecieve(sess, c)
 
-func handleMessages(sess Session, c <-chan Message) (msg Message, ok bool) {
+		if !ok {
+			log.Println("Session closing with status: ", ok)
+			break
+		}
+
+		realm.handleMessage(msg, sess, details)
+	}
+
+	sess.Close()
+
+	// for _, callback := range r.sessionCloseCallbacks {
+	// 	go callback(uint(sess.Id), string(hello.Realm))
+	// }
+}
+
+func sessionRecieve(sess Session, c <-chan Message) (msg Message, ok bool) {
 	// c := sess.Resceive()
 	// TODO: what happens if the realm is closed?
 
