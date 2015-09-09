@@ -1,10 +1,10 @@
 package rabric
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
-	"encoding/json"
 )
 
 var defaultWelcomeDetails = map[string]interface{}{
@@ -30,6 +30,12 @@ type AuthenticationError string
 
 func (e AuthenticationError) Error() string {
 	return "authentication error: " + string(e)
+}
+
+type InvalidURIError string
+
+func (e InvalidURIError) Error() string {
+	return "invalid URI: " + string(e)
 }
 
 // A Router handles new Peers and routes requests to the requested Realm.
@@ -78,7 +84,7 @@ func (r *defaultRouter) Close() error {
 
 	r.closing = true
 	r.closeLock.Unlock()
-	
+
 	for _, realm := range r.realms {
 		realm.Close()
 	}
@@ -112,7 +118,7 @@ func (r *defaultRouter) Accept(client Peer) error {
 
 	// pprint the incoming details
 	if b, err := json.MarshalIndent(msg, "", "  "); err != nil {
-	    fmt.Println("error:", err)
+		fmt.Println("error:", err)
 	} else {
 		log.Printf("%s: %+v", msg.MessageType(), string(b))
 	}
@@ -124,8 +130,8 @@ func (r *defaultRouter) Accept(client Peer) error {
 
 		return fmt.Errorf("protocol violation: expected HELLO, received %s", msg.MessageType())
 
-	// Checking for appropriate realm here. How much do we still care about the realms? Can 
-	// we remove all reference to all realms? Are we retaining subrealm functionality for now?
+		// Checking for appropriate realm here. How much do we still care about the realms? Can
+		// we remove all reference to all realms? Are we retaining subrealm functionality for now?
 	} else if realm, ok := r.realms[hello.Realm]; !ok {
 		logErr(client.Send(&Abort{Reason: ErrNoSuchRealm}))
 		logErr(client.Close())
@@ -159,7 +165,7 @@ func (r *defaultRouter) Accept(client Peer) error {
 		if err := client.Send(welcome); err != nil {
 			return err
 		}
-		
+
 		log.Println("Established session:", welcome.Id)
 
 		sess := Session{Peer: client, Id: welcome.Id, kill: make(chan URI, 1)}
@@ -181,7 +187,7 @@ func (r *defaultRouter) Accept(client Peer) error {
 			}
 		}()
 	}
-	
+
 	return nil
 }
 

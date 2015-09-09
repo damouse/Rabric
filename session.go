@@ -6,13 +6,14 @@ import (
 
 type Session struct {
 	Peer
-	Id ID
+	Id   ID
+	pdid URI
 
 	kill chan URI
 }
 
 func (s Session) String() string {
-	return fmt.Sprintf("%d", s.Id)
+	return fmt.Sprintf("%s", s.pdid)
 }
 
 // localPipe creates two linked sessions. Messages sent to one will

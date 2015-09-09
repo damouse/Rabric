@@ -4,6 +4,7 @@ import (
 	// "encoding/json"
 	"fmt"
 	// "github.com/tchap/go-patricia/patricia"
+	"strings"
 	"sync"
 	"time"
 )
@@ -137,9 +138,9 @@ func (r *node) Accept(client Peer) error {
 	log.Println("Established session: ", hello.Realm)
 	// log.Println("Established session: ", welcome.Id)
 
-	sess := Session{Peer: client, Id: welcome.Id, kill: make(chan URI, 1)}
+	sess := Session{Peer: client, Id: welcome.Id, pdid: hello.Realm, kill: make(chan URI, 1)}
 
-	// Alert any registered listeners of a new session
+	// Meta level start events
 	for _, callback := range r.sessionOpenCallbacks {
 		go callback(uint(sess.Id), string(hello.Realm))
 	}
@@ -198,6 +199,23 @@ func sessionRecieve(sess Session, c <-chan Message) (msg Message, ok bool) {
 	}
 
 	return msg, true
+}
+
+// Given a uri, attempts to extract the target action naively
+// Please move me somewhere nice
+func extractAction(s string) (string, error) {
+	i := strings.Index(s, "/")
+
+	// No slash found, error
+	if i == -1 {
+		return "", InvalidURIError(s)
+	}
+
+	// not covered: closing slash
+	// pd.damouse/
+
+	i += 1
+	return s[i:], nil
 }
 
 ////////////////////////////////////////

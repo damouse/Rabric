@@ -20,7 +20,7 @@ class Component(ApplicationSession):
     def onJoin(self, details):
         print("session attached")
 
-        res = yield self.call('pd.damouse.add', 2, 3)
+        res = yield self.call('pd.damouse/add', 2, 3)
         print 'Called add with 2 + 3 = ', res
 
         print 'Publishing to pd.pub'

@@ -29,7 +29,7 @@ class Component(ApplicationSession):
     def onJoin(self, details):
         print "session attached"
 
-        yield self.register(callAdd, 'pd.damouse.add')
+        yield self.register(callAdd, 'pd.damouse/add')
         yield self.subscribe(pub, 'pd.damouse.pub')
 
         print "procedures registered"
