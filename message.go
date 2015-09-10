@@ -464,3 +464,45 @@ type Interrupt struct {
 func (msg *Interrupt) MessageType() MessageType {
 	return INTERRUPT
 }
+
+////////////////////////////////////////
+/*
+ Begin a whole mess of code we really don't want to get into 
+ and which pretty much guarantees we'll have to make substantial changes to 
+ Riffle code: the messages don't have a standardized way of returning their 
+ TO identity!
+
+ Really, really need this, Short of modifying and standardizing the WAMP changes
+ this is unlikely to happen without node monkey-patching. So here we go.
+*/
+////////////////////////////////////////
+
+type NoDestinationError string
+
+func (e NoDestinationError) Error() string {
+	return "cannot determine destination from: " + string(e)
+}
+
+
+// Given a message, return the intended endpoint
+func destination(m *Message) (URI, error) {
+	msg := *m
+
+	switch msg := msg.(type) {
+
+	case *Publish:
+		return msg.Topic, nil
+	case *Subscribe:
+		return msg.Topic, nil
+
+	// Dealer messages
+	case *Register:
+		return msg.Procedure, nil
+	case *Call:
+		return msg.Procedure, nil
+
+	default:
+		log.Println("Unhandled message:", msg.MessageType())
+		return "", NoDestinationError(msg.MessageType())
+	}
+}

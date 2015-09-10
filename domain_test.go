@@ -26,3 +26,17 @@ func TestValidDomain(t *testing.T) {
         })
     })
 }
+
+func TestExtractDomain(t *testing.T) {
+    Convey("Single domains can be extracted", t, func() {
+        s, _ := extractDomain("pd.damouse/alpha")
+        So(s, ShouldEqual, "pd.damouse")
+    })
+}
+
+func TestExtractAction(t *testing.T) {
+    Convey("Single actions can be extracted", t, func() {
+        s, _ := extractActions("pd/alpha")
+        So(s, ShouldEqual, "alpha")
+    })
+}

@@ -4,7 +4,6 @@ import (
 	// "encoding/json"
 	"fmt"
 	// "github.com/tchap/go-patricia/patricia"
-	"strings"
 	"sync"
 	"time"
 )
@@ -175,6 +174,31 @@ func recvSession(realm *Realm, sess Session, details map[string]interface{}) {
 			break
 		}
 
+        //NOTE: there is a serious shortcoming here: How do we deal with WAMP messages with an
+        // implicit destination? Many of them refer to sessions, but do we want to store the session 
+        // IDs with the ultimate PDID target, or just change the protocol?
+
+
+        if uri, ok := destination(&msg); ok == nil {
+            log.Println("Domain extracted as ", uri)
+
+            // Ensure the construction of the message is valid, extract the endpoint, domain, and action
+            // var domain, action, string
+
+            cast := string(uri)
+            log.Println(cast)
+
+
+        } else {
+            log.Println("Unable to determine destination from message.")
+        }
+       
+
+        // log.Println(msg)
+        // if domain, ok := extractDomain()
+
+
+        // if asking a realm to handle the message, assume this is for local delivery
 		realm.handleMessage(msg, sess, details)
 	}
 }
@@ -199,23 +223,6 @@ func sessionRecieve(sess Session, c <-chan Message) (msg Message, ok bool) {
 	}
 
 	return msg, true
-}
-
-// Given a uri, attempts to extract the target action naively
-// Please move me somewhere nice
-func extractAction(s string) (string, error) {
-	i := strings.Index(s, "/")
-
-	// No slash found, error
-	if i == -1 {
-		return "", InvalidURIError(s)
-	}
-
-	// not covered: closing slash
-	// pd.damouse/
-
-	i += 1
-	return s[i:], nil
 }
 
 ////////////////////////////////////////

@@ -1,21 +1,26 @@
 package rabric
 
 import (
-    "fmt"
     "strings"
     "regexp"
 )
 
+// Check out the golang tester for more info:
+// https://regex-golang.appspot.com/assets/html/index.html
 func validEndpoint(s string) bool {
     r, _ := regexp.Compile("(^([a-z]+)(.[a-z]+)*$)")
     return r.MatchString(s)
 }
 
-// Regex valid domains
-// (([a-z]+)(.[a-z]+)*)
+func validDomain(s string) bool {
+    return true
+}
 
-// Given a uri, attempts to extract the target action naively
-// Please move me somewhere nice
+func validAction(s string) bool {
+    return true
+}
+
+// Extract action from endpoint, returning an error
 func extractActions(s string) (string, error) {
     i := strings.Index(s, "/")
 
@@ -25,20 +30,16 @@ func extractActions(s string) (string, error) {
     }
 
     // not covered: closing slash
+    // Is this a bug? Intentional? Should be considered as part of the action?
     // pd.damouse/
 
     i += 1
     return s[i:], nil
 }
 
-
-func testRexex(s string) {
-    r, _ := regexp.Compile("(([a-z]+)(.[a-z]+)*)")
-    fmt.Printf("Regext for %s matches %v\n", s, r.MatchString("peach"))
+// Extract domain from endpoint, returning an error
+func extractDomain(s string) (string, error) {
+    i := strings.Index(s, "/")
+    return s[:i], nil
 }
 
-// func main() {
-//     fmt.Printf("Hello, world.\n")
-
-//     testRexex("pd.peach.money")
-// }
