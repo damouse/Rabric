@@ -43,3 +43,10 @@ func extractDomain(s string) (string, error) {
     return s[:i], nil
 }
 
+// breaks down an endpoint into domain and action, or returns an error
+func breakdownEndpoint(s string) (string, string, error) {
+    d, dok := extractDomain(s)
+    a, aok := extractActions(s)
+
+    return d, a, nil
+}
