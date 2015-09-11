@@ -250,6 +250,7 @@ func (n *node) SessionClose(sess Session) {
     // }
 
     // Check if any realms need to be closed
+    // Check if any registrations or pubs need to be purged
 }
 
 // Handle a new message
@@ -259,13 +260,9 @@ func (n *node) Handle(msg *Message, realm *Realm, sess *Session) {
     // IDs with the ultimate PDID target, or just change the protocol?
 
     if uri, ok := destination(msg); ok == nil {
-        // log.Println("Domain extracted as ", uri)
-
-        // log.Println("Attempting to extract: ", string(msg))
-        // log.Printf("[%s] %s: %+v", sess, msg.MessageType(), msg)
-
         // Ensure the construction of the message is valid, extract the endpoint, domain, and action
         domain, action, err := breakdownEndpoint(string(uri))
+        log.Printf("", action)
 
         // Return a WAMP error to the user indicating a poorly constructed endpoint
         if err != nil {
@@ -273,10 +270,7 @@ func (n *node) Handle(msg *Message, realm *Realm, sess *Session) {
             return
         }
 
-        log.Printf("Extracted: %s %s \n", domain, action)
-
-        // r := 
-        // log.Println("Current realm: ", realm)
+        // log.Printf("Extracted: %s %s \n", domain, action)
 
         if !n.Permitted(msg, sess) {
             log.Println("Operation not permitted! TODO: return an error here!")
@@ -284,23 +278,19 @@ func (n *node) Handle(msg *Message, realm *Realm, sess *Session) {
         }
 
         // Delivery (deferred)
+        // route = n.Route(msg)
 
         // Get the target realm based on the domain, pass the message along
         target := n.getDomain(URI(domain))
         target.handleMessage(*msg, *sess)
 
     } else {
-        log.Println("Unable to determine destination from message.")
+        log.Printf("Unable to determine destination from message: %+v", *msg)
 
-        // Should work, doesnt
+        // Default handler: cant figure out the target realm (pdid not present)
         realm := n.getDomain(sess.pdid)
-        realm.handleMessage(msg, sess)
-        // realm.handleMessage(*msg, *sess)
-    }
-
-    // if asking a realm to handle the message, assume this is for local delivery
-
-    
+        realm.handleMessage(*msg, *sess)
+    }    
 }
 
 // Return true or false based on the message and the session which sent the messate
@@ -324,10 +314,6 @@ func (n *node) Route(msg *Message) string {
 func (n *node) CoreReady() bool {
     return true
 }
-
-//NOTE: move functionality to Session object
-// Spin and receive new messages, passing them to the assigned function
-
 
 // Creates and/or returns a realm on the given node. 
 // Not safe
