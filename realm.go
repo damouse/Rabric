@@ -275,24 +275,24 @@ func addAuthMethod(details map[string]interface{}, method string) map[string]int
 	return details
 }
 
-func (r *Realm) handleMessage(msg Message, sess Session, details map[string]interface{}) {
+func (r *Realm) handleMessage(msg Message, sess Session) {
 
-	log.Printf("[%s] %s: %+v", sess, msg.MessageType(), msg)
+	// log.Printf("[%s] %s: %+v", sess, msg.MessageType(), msg)
 
-	if isAuthz, err := r.Authorizer.Authorize(sess.Id, msg, details); !isAuthz {
-		errMsg := &Error{Type: msg.MessageType()}
-		if err != nil {
-			errMsg.Error = ErrAuthorizationFailed
-			log.Printf("[%s] authorization failed: %v", sess, err)
-		} else {
-			errMsg.Error = ErrNotAuthorized
-			log.Printf("[%s] %s UNAUTHORIZED", sess, msg.MessageType())
-		}
+	// if isAuthz, err := r.Authorizer.Authorize(sess.Id, msg, details); !isAuthz {
+	// 	errMsg := &Error{Type: msg.MessageType()}
+	// 	if err != nil {
+	// 		errMsg.Error = ErrAuthorizationFailed
+	// 		log.Printf("[%s] authorization failed: %v", sess, err)
+	// 	} else {
+	// 		errMsg.Error = ErrNotAuthorized
+	// 		log.Printf("[%s] %s UNAUTHORIZED", sess, msg.MessageType())
+	// 	}
 
-		logErr(sess.Send(errMsg))
-		// continue
-		return
-	}
+	// 	logErr(sess.Send(errMsg))
+	// 	// continue
+	// 	return
+	// }
 
 	// No idea what this was meant to do
 	// r.Interceptor.Intercept(sess.Id, &msg, details)

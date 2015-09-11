@@ -108,84 +108,26 @@ func (r *node) RegisterRealm(uri URI, realm Realm) error {
 }
 
 func (r *node) Accept(client Peer) error {
+    sess, ok := r.Handshake(client)
 
-    // node.Handshake(peer)
+    if ok != nil {
+        return ok
+    }
 
-	// Dont accept new sessions if the node is going down
-	if r.closing {
-		logErr(client.Send(&Abort{Reason: ErrSystemShutdown}))
-		logErr(client.Close())
-		return fmt.Errorf("Router is closing, no new connections are allowed")
-	}
-
-	msg, err := GetMessageTimeout(client, 5*time.Second)
-	if err != nil {
-		return err
-	}
-
-	hello, _ := msg.(*Hello)
-
-	// Ensure the message is valid and well constructed
-	if _, ok := msg.(*Hello); !ok {
-		logErr(client.Send(&Abort{Reason: URI("wamp.error.protocol_violation")}))
-		logErr(client.Close())
-
-		return fmt.Errorf("protocol violation: expected HELLO, received %s", msg.MessageType())
-	}
-
-	// get the appropriate domain
-    realm := r.getDomain(hello.Realm)
-
-	// Old implementation: the authentication must occur before fetching the realm
-	welcome, err := realm.handleAuth(client, hello.Details)
-
-	if err != nil {
-		abort := &Abort{
-			Reason:  ErrAuthorizationFailed, // TODO: should this be AuthenticationFailed?
-			Details: map[string]interface{}{"error": err.Error()},
-		}
-
-		logErr(client.Send(abort))
-		logErr(client.Close())
-		return AuthenticationError(err.Error())
-	}
-
-	welcome.Id = NewID()
-
-	if welcome.Details == nil {
-		welcome.Details = make(map[string]interface{})
-	}
-
-	// add default details to welcome message
-	for k, v := range defaultWelcomeDetails {
-		if _, ok := welcome.Details[k]; !ok {
-			welcome.Details[k] = v
-		}
-	}
-
-	if err := client.Send(welcome); err != nil {
-		return err
-	}
-
-	log.Println("Established session: ", hello.Realm)
-	// log.Println("Established session: ", welcome.Id)
-
-	sess := Session{Peer: client, Id: welcome.Id, pdid: hello.Realm, kill: make(chan URI, 1)}
+	// sess := Session{Peer: client, Id: welcome.Id, pdid: hello.Realm, kill: make(chan URI, 1)}
+    log.Println("Established session: ", sess.pdid)
 
 	// Meta level start events
-	for _, callback := range r.sessionOpenCallbacks {
-		go callback(uint(sess.Id), string(hello.Realm))
-	}
+	// for _, callback := range r.sessionOpenCallbacks {
+	// 	go callback(uint(sess.Id), string(hello.Realm))
+	// }
+
+    // OLD CODE: need the original realm to handle issues with default 
+    realm := r.getDomain(sess.pdid)
 
 	// Start listening on the session
-	go func() {
-		Listen(&realm, sess, welcome.Details)
-		sess.Close()
-
-		for _, callback := range r.sessionCloseCallbacks {
-			go callback(uint(sess.Id), string(hello.Realm))
-		}
-	}()
+    // This will eventually move to the session
+    go Listen(r, &realm, sess)
 
 	return nil
 }
@@ -196,133 +138,183 @@ func (r *node) Accept(client Peer) error {
 
 // Spin on a session, wait for messages to arrive. Method does not return
 // until session closes
-// Can you pass in the realm here? The messages may not be intended for this domain!
-func Listen(realm *Realm, sess Session, details map[string]interface{}) {
+// NOTE: realm and details are OLD CODE and should not be construed as permanent fixtures
+func Listen(node *node, realm *Realm, sess Session) {
 	c := sess.Receive()
 
 	for {
-		msg, ok := sessionRecieve(sess, c)
+        var open bool
+        var msg Message
 
-		if !ok {
-			log.Println("Session closing with status: ", ok)
-			break
-		}
+        select {
+        case msg, open = <-c:
+            if !open {
+                log.Println("lost session:", sess)
 
-        // NOTE: there is a serious shortcoming here: How do we deal with WAMP messages with an
-        // implicit destination? Many of them refer to sessions, but do we want to store the session 
-        // IDs with the ultimate PDID target, or just change the protocol?
-
-        if uri, ok := destination(&msg); ok == nil {
-            // log.Println("Domain extracted as ", uri)
-
-            // log.Println("Attempting to extract: ", string(msg))
-            // log.Printf("[%s] %s: %+v", sess, msg.MessageType(), msg)
-
-            // Ensure the construction of the message is valid, extract the endpoint, domain, and action
-            domain, action, err := breakdownEndpoint(string(uri))
-
-            // Return a WAMP error to the user indicating a poorly constructed endpoint
-            if err != nil {
-                log.Println("Misconstructed endpoint. Dont know what to do now!")
-                continue
+                node.SessionClose(sess)
+                return
             }
 
-            log.Printf("Extracted: %s %s \n", domain, action)
+        case reason := <-sess.kill:
+            logErr(sess.Send(&Goodbye{Reason: reason, Details: make(map[string]interface{})}))
+            log.Printf("kill session %s: %v", sess, reason)
 
-            // r := 
-            // log.Println("Current realm: ", realm)
- 
-            // Permissions
-            // Is downward action? allow
-            // Check permissions cache: if found, allow
-            // Check with bouncer
-
-            // Delivery
-            // Is target a tenant? 
-            // Is target in forwarding tables?
-            // Ask map for next hop
-
-
-        } else {
-            log.Println("Unable to determine destination from message.")
+            //NEW: Exit the session!
+            node.SessionClose(sess)
+            return
         }
 
-        // if asking a realm to handle the message, assume this is for local delivery
-		realm.handleMessage(msg, sess, details)
+        node.Handle(&msg, realm, &sess)
 	}
 }
 
-// receive messages from a session
-func sessionRecieve(sess Session, c <-chan Message) (msg Message, ok bool) {
-	var open bool
-
-	select {
-	case msg, open = <-c:
-		if !open {
-			log.Println("lost session:", sess)
-			return nil, false
-		}
-
-	case reason := <-sess.kill:
-		logErr(sess.Send(&Goodbye{Reason: reason, Details: make(map[string]interface{})}))
-		log.Printf("kill session %s: %v", sess, reason)
-
-		// TODO: wait for client Goodbye?
-		return nil, false
-	}
-
-	return msg, true
-}
-
-
-
-// GetLocalPeer returns an internal peer connected to the specified realm.
-func (r *node) GetLocalPeer(realmURI URI, details map[string]interface{}) (Peer, error) {
-	peerA, peerB := localPipe()
-	sess := Session{Peer: peerA, Id: NewID(), kill: make(chan URI, 1)}
-	log.Println("Established internal session:", sess.Id)
-
-	if realm, ok := r.realms[realmURI]; ok {
-		// TODO: session open/close callbacks?
-		if details == nil {
-			details = make(map[string]interface{})
-		}
-
-		go realm.handleSession(sess, details)
-	} else {
-		return nil, NoSuchRealmError(realmURI)
-	}
-
-	return peerB, nil
-}
-
-func (r *node) getTestPeer() Peer {
-	peerA, peerB := localPipe()
-	go r.Accept(peerA)
-	return peerB
-}
 
 ////////////////////////////////////////
 // Very new code
 ////////////////////////////////////////
 
 // Handle a new Peer
-func (n *node) Handshake(msg *Message) {
+func (n *node) Handshake(client Peer) (Session, error) {
+    sess := Session{}
 
+    // Dont accept new sessions if the node is going down
+    if n.closing {
+        logErr(client.Send(&Abort{Reason: ErrSystemShutdown}))
+        logErr(client.Close())
+        return sess, fmt.Errorf("Router is closing, no new connections are allowed")
+    }
+
+    msg, err := GetMessageTimeout(client, 5*time.Second)
+    if err != nil {
+        return sess, err
+    }
+
+    hello, _ := msg.(*Hello)
+
+    // Ensure the message is valid and well constructed
+    if _, ok := msg.(*Hello); !ok {
+        logErr(client.Send(&Abort{Reason: URI("wamp.error.protocol_violation")}))
+        logErr(client.Close())
+
+        return sess, fmt.Errorf("protocol violation: expected HELLO, received %s", msg.MessageType())
+    }
+
+    // get the appropriate domain
+    realm := n.getDomain(hello.Realm)
+
+    // Old implementation: the authentication must occur before fetching the realm
+    welcome, err := realm.handleAuth(client, hello.Details)
+
+    if err != nil {
+        abort := &Abort{
+            Reason:  ErrAuthorizationFailed, // TODO: should this be AuthenticationFailed?
+            Details: map[string]interface{}{"error": err.Error()},
+        }
+
+        logErr(client.Send(abort))
+        logErr(client.Close())
+        return sess, AuthenticationError(err.Error())
+    }
+
+    welcome.Id = NewID()
+
+    if welcome.Details == nil {
+        welcome.Details = make(map[string]interface{})
+    }
+
+    // add default details to welcome message
+    for k, v := range defaultWelcomeDetails {
+        if _, ok := welcome.Details[k]; !ok {
+            welcome.Details[k] = v
+        }
+    }
+
+    if err := client.Send(welcome); err != nil {
+        return sess, err
+    }
+
+    log.Println("Established session: ", hello.Realm)
+    // log.Println("Established session: ", welcome.Id)
+
+    sess = Session{Peer: client, Id: welcome.Id, pdid: hello.Realm, kill: make(chan URI, 1)}
+    return sess, nil
+}
+
+// Called when a session is closed or closes itself
+func (n *node) SessionClose(sess Session) {
+    sess.Close()
+
+    // Meta level events
+    // for _, callback := range n.sessionCloseCallbacks {
+    //     go callback(uint(sess.Id), string(hello.Realm))
+    // }
+
+    // Check if any realms need to be closed
 }
 
 // Handle a new message
-func (n *node) Handle(msg *Message) {
+func (n *node) Handle(msg *Message, realm *Realm, sess *Session) {
+    // NOTE: there is a serious shortcoming here: How do we deal with WAMP messages with an
+    // implicit destination? Many of them refer to sessions, but do we want to store the session 
+    // IDs with the ultimate PDID target, or just change the protocol?
 
+    if uri, ok := destination(msg); ok == nil {
+        // log.Println("Domain extracted as ", uri)
+
+        // log.Println("Attempting to extract: ", string(msg))
+        // log.Printf("[%s] %s: %+v", sess, msg.MessageType(), msg)
+
+        // Ensure the construction of the message is valid, extract the endpoint, domain, and action
+        domain, action, err := breakdownEndpoint(string(uri))
+
+        // Return a WAMP error to the user indicating a poorly constructed endpoint
+        if err != nil {
+            log.Println("Misconstructed endpoint. Dont know what to do now!")
+            return
+        }
+
+        log.Printf("Extracted: %s %s \n", domain, action)
+
+        // r := 
+        // log.Println("Current realm: ", realm)
+
+        if !n.Permitted(msg, sess) {
+            log.Println("Operation not permitted! TODO: return an error here!")
+            return
+        }
+
+        // Delivery (deferred)
+        target := n.getDomain(URI(domain))
+        target.handleMessage(*msg, *sess)
+
+    } else {
+        log.Println("Unable to determine destination from message.")
+
+        // Should work, doesnt
+        // realm := node.getDomain(sess.pdid)
+        // realm.handleMessage(msg, sess)
+        realm.handleMessage(*msg, *sess)
+    }
+
+    // if asking a realm to handle the message, assume this is for local delivery
+
+    
 }
 
 // Return true or false based on the message and the session which sent the messate
 func (n *node) Permitted(msg *Message, sess *Session) bool {
+    // Is downward action? allow
+    // Check permissions cache: if found, allow
+    // Check with bouncer
     return true
 }
 
 // returns the pdid of the next hop on the path for the given message
 func (n *node) Route(msg *Message) string {
+    // Is target a tenant? 
+    // Is target in forwarding tables?
+    // Ask map for next hop
+
     return ""
 }
 
@@ -333,9 +325,7 @@ func (n *node) CoreReady() bool {
 
 //NOTE: move functionality to Session object
 // Spin and receive new messages, passing them to the assigned function
-func Listen() {
 
-}
 
 // Creates and/or returns a realm on the given node. 
 // Not safe
@@ -351,4 +341,35 @@ func (n *node) getDomain(name URI) Realm {
     }
 
     return realm
+}
+
+
+////////////////////////////////////////
+// Old code, not sure if still useful
+////////////////////////////////////////
+
+// GetLocalPeer returns an internal peer connected to the specified realm.
+func (r *node) GetLocalPeer(realmURI URI, details map[string]interface{}) (Peer, error) {
+    peerA, peerB := localPipe()
+    sess := Session{Peer: peerA, Id: NewID(), kill: make(chan URI, 1)}
+    log.Println("Established internal session:", sess.Id)
+
+    if realm, ok := r.realms[realmURI]; ok {
+        // TODO: session open/close callbacks?
+        if details == nil {
+            details = make(map[string]interface{})
+        }
+
+        go realm.handleSession(sess, details)
+    } else {
+        return nil, NoSuchRealmError(realmURI)
+    }
+
+    return peerB, nil
+}
+
+func (r *node) getTestPeer() Peer {
+    peerA, peerB := localPipe()
+    go r.Accept(peerA)
+    return peerB
 }
