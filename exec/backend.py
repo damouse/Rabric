@@ -4,6 +4,7 @@ Autobahn examples using vanilla WAMP
 
 from os import environ
 from twisted.internet.defer import inlineCallbacks
+from twisted.internet import reactor
 
 from autobahn.wamp.types import CallResult
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
@@ -18,6 +19,11 @@ def pub(a):
     print 'Server received a pub with ', a
 
 
+def kill():
+    print 'Quitting'
+    reactor.stop()
+
+
 class Component(ApplicationSession):
 
     """
@@ -30,6 +36,8 @@ class Component(ApplicationSession):
         print "session attached"
 
         yield self.register(callAdd, 'pd.damouse/add')
+        yield self.register(kill, 'pd.damouse/kill')
+
         yield self.subscribe(pub, 'pd.damouse/pub')
 
         print "procedures registered"
@@ -42,4 +50,5 @@ if __name__ == '__main__':
         debug_wamp=False,  # optional; log many WAMP details
         debug=False,  # optional; log even more details
     )
+
     runner.run(Component)

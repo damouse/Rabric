@@ -109,6 +109,8 @@ func (r *node) RegisterRealm(uri URI, realm Realm) error {
 
 func (r *node) Accept(client Peer) error {
 
+    // node.Handshake(peer)
+
 	// Dont accept new sessions if the node is going down
 	if r.closing {
 		logErr(client.Send(&Abort{Reason: ErrSystemShutdown}))
@@ -140,15 +142,16 @@ func (r *node) Accept(client Peer) error {
 	}
 
 	// Old implementation
-	realm, exists := r.realms[hello.Realm]
+    realm := r.getDomain(hello.Realm)
+	// realm, exists := r.realms[hello.Realm]
 
-	if !exists {
-		log.Println("Domain not found, creating new domain for ", hello.Realm)
+	// if !exists {
+	// 	log.Println("Domain not found, creating new domain for ", hello.Realm)
 
-		realm = Realm{URI: hello.Realm}
-		realm.init()
-		r.realms[hello.Realm] = realm
-	}
+	// 	realm = Realm{URI: hello.Realm}
+	// 	realm.init()
+	// 	r.realms[hello.Realm] = realm
+	// }
 
 	// Old implementation: the authentication must occur before fetching the realm
 	welcome, err := realm.handleAuth(client, hello.Details)
@@ -229,6 +232,9 @@ func recvSession(realm *Realm, sess Session, details map[string]interface{}) {
         if uri, ok := destination(&msg); ok == nil {
             // log.Println("Domain extracted as ", uri)
 
+            // log.Println("Attempting to extract: ", string(msg))
+            // log.Printf("[%s] %s: %+v", sess, msg.MessageType(), msg)
+
             // Ensure the construction of the message is valid, extract the endpoint, domain, and action
             domain, action, err := breakdownEndpoint(string(uri))
 
@@ -239,7 +245,9 @@ func recvSession(realm *Realm, sess Session, details map[string]interface{}) {
             }
 
             log.Printf("Extracted: %s %s \n", domain, action)
-            log.Println("Current realm: ", realm)
+
+            // r := 
+            // log.Println("Current realm: ", realm)
  
             // Permissions
             // Is downward action? allow
@@ -315,6 +323,11 @@ func (r *node) getTestPeer() Peer {
 // Very new code
 ////////////////////////////////////////
 
+// Handle a new Peer
+func (n *node) Handshake(msg *Message) {
+
+}
+
 // Handle a new message
 func (n *node) Handle(msg *Message) {
 
@@ -328,4 +341,31 @@ func (n *node) Permitted(msg *Message, sess *Session) bool {
 // returns the pdid of the next hop on the path for the given message
 func (n *node) Route(msg *Message) string {
     return ""
+}
+
+// Returns true if core appliances connected
+func (n *node) CoreReady() bool {
+    return true
+}
+
+//NOTE: move functionality to Session object
+// Spin and receive new messages, passing them to the assigned function
+func Listen() {
+
+}
+
+// Creates and/or returns a realm on the given node. 
+// Not safe
+func (n *node) getDomain(name URI) Realm {
+    realm, exists := n.realms[name]
+
+    if !exists {
+        log.Println("Domain not found, creating new domain for ", name)
+
+        realm = Realm{URI: name}
+        realm.init()
+        n.realms[name] = realm
+    }
+
+    return realm
 }

@@ -26,6 +26,9 @@ class Component(ApplicationSession):
         print 'Publishing to pd.pub'
         yield self.publish('pd.damouse/pub', 'Hello!')
 
+        print 'Asking the other guy to die'
+        res = yield self.call('pd.damouse/kill')
+
         self.leave()
 
     def onDisconnect(self):
@@ -40,4 +43,5 @@ if __name__ == '__main__':
         debug_wamp=False,  # optional; log many WAMP details
         debug=False,  # optional; log even more details
     )
+
     runner.run(Component)

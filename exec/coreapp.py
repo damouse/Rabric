@@ -29,7 +29,7 @@ class Component(ApplicationSession):
     def onJoin(self, details):
         print "session attached"
 
-        yield self.publish('pd', '/hello')
+        yield self.publish('pd/hello')
 
         print "procedures registered"
 
