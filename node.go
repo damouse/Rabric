@@ -284,6 +284,8 @@ func (n *node) Handle(msg *Message, realm *Realm, sess *Session) {
         }
 
         // Delivery (deferred)
+
+        // Get the target realm based on the domain, pass the message along
         target := n.getDomain(URI(domain))
         target.handleMessage(*msg, *sess)
 
@@ -291,9 +293,9 @@ func (n *node) Handle(msg *Message, realm *Realm, sess *Session) {
         log.Println("Unable to determine destination from message.")
 
         // Should work, doesnt
-        // realm := node.getDomain(sess.pdid)
-        // realm.handleMessage(msg, sess)
-        realm.handleMessage(*msg, *sess)
+        realm := n.getDomain(sess.pdid)
+        realm.handleMessage(msg, sess)
+        // realm.handleMessage(*msg, *sess)
     }
 
     // if asking a realm to handle the message, assume this is for local delivery
