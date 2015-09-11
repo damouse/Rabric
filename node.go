@@ -12,6 +12,7 @@ type node struct {
 	sessionOpenCallbacks  []func(uint, string)
 	sessionCloseCallbacks []func(uint, string)
 	realms                map[URI]Realm
+    realm                 Realm
 	sessionPdid           map[string]string
 	nodes                 map[string]Session
 	forwarding            map[string]Session
@@ -36,6 +37,10 @@ func NewNode() Router {
     realm.init()
 
     node.realms["pd"] = realm
+
+    // Experimental single realm testing--- since we're handling the 
+    // pubs and subs to begin with 
+    node.realm = realm
 
     // peer, ok := node.GetLocalPeer("pd", nil)
 
@@ -70,7 +75,7 @@ func (n *node) localClient(s string) *Client {
     client.ReceiveTimeout = 100 * time.Millisecond
     _, err := client.JoinRealm(s, nil)
 
-    log.Println(err)
+    log.Println("Error when creating new client: ", err)
 
     return client
 }
@@ -164,7 +169,7 @@ func Listen(node *node, realm *Realm, sess Session) {
             return
         }
 
-        node.Handle(&msg, realm, &sess)
+        node.Handle(&msg, &sess)
 	}
 }
 
@@ -200,7 +205,8 @@ func (n *node) Handshake(client Peer) (Session, error) {
     }
 
     // get the appropriate domain
-    realm := n.getDomain(hello.Realm)
+    // realm := n.getDomain(hello.Realm)
+    realm := n.realm
 
     // Old implementation: the authentication must occur before fetching the realm
     welcome, err := realm.handleAuth(client, hello.Details)
@@ -254,14 +260,14 @@ func (n *node) SessionClose(sess Session) {
 }
 
 // Handle a new message
-func (n *node) Handle(msg *Message, realm *Realm, sess *Session) {
+func (n *node) Handle(msg *Message, sess *Session) {
     // NOTE: there is a serious shortcoming here: How do we deal with WAMP messages with an
     // implicit destination? Many of them refer to sessions, but do we want to store the session 
     // IDs with the ultimate PDID target, or just change the protocol?
 
     if uri, ok := destination(msg); ok == nil {
         // Ensure the construction of the message is valid, extract the endpoint, domain, and action
-        domain, action, err := breakdownEndpoint(string(uri))
+        _, action, err := breakdownEndpoint(string(uri))
         log.Printf("", action)
 
         // Return a WAMP error to the user indicating a poorly constructed endpoint
@@ -281,14 +287,16 @@ func (n *node) Handle(msg *Message, realm *Realm, sess *Session) {
         // route = n.Route(msg)
 
         // Get the target realm based on the domain, pass the message along
-        target := n.getDomain(URI(domain))
+        // target := n.getDomain(URI(domain))
+        target := n.realm
         target.handleMessage(*msg, *sess)
 
     } else {
         log.Printf("Unable to determine destination from message: %+v", *msg)
 
         // Default handler: cant figure out the target realm (pdid not present)
-        realm := n.getDomain(sess.pdid)
+        // realm := n.getDomain(sess.pdid)
+        realm := n.realm
         realm.handleMessage(*msg, *sess)
     }    
 }
@@ -342,16 +350,23 @@ func (r *node) GetLocalPeer(realmURI URI, details map[string]interface{}) (Peer,
     sess := Session{Peer: peerA, Id: NewID(), kill: make(chan URI, 1)}
     log.Println("Established internal session:", sess.Id)
 
-    if realm, ok := r.realms[realmURI]; ok {
-        // TODO: session open/close callbacks?
-        if details == nil {
-            details = make(map[string]interface{})
-        }
-
-        go realm.handleSession(sess, details)
-    } else {
-        return nil, NoSuchRealmError(realmURI)
+    // TODO: session open/close callbacks?
+    if details == nil {
+        details = make(map[string]interface{})
     }
+
+    go r.realm.handleSession(sess, details)
+
+    // if realm, ok := r.realms[realmURI]; ok {
+    //     // TODO: session open/close callbacks?
+    //     if details == nil {
+    //         details = make(map[string]interface{})
+    //     }
+
+    //     go realm.handleSession(sess, details)
+    // } else {
+    //     return nil, NoSuchRealmError(realmURI)
+    // }
 
     return peerB, nil
 }

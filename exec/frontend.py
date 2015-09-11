@@ -23,9 +23,6 @@ class Component(ApplicationSession):
         res = yield self.call('pd.damouse/add', 2, 3)
         print 'Called add with 2 + 3 = ', res
 
-        print 'Publishing to pd.pub'
-        yield self.publish('pd.damouse/pub', 'Hello!')
-
         print 'Asking the other guy to die'
         res = yield self.call('pd.damouse/kill')
 

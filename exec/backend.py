@@ -38,6 +38,9 @@ class Component(ApplicationSession):
         yield self.register(callAdd, 'pd.damouse/add')
         yield self.register(kill, 'pd.damouse/kill')
 
+        print 'Publishing to pd.pub'
+        yield self.publish('pd/hello')
+
         yield self.subscribe(pub, 'pd.damouse/pub')
 
         print "procedures registered"

@@ -30,6 +30,7 @@ func NewDefaultBroker() Broker {
 // after the message has been sent to all subscribers.
 func (br *defaultBroker) Publish(pub Sender, msg *Publish) {
 	pubId := NewID()
+	
 	evtTemplate := Event{
 		Publication: pubId,
 		Arguments:   msg.Arguments,
@@ -79,7 +80,7 @@ func (br *defaultBroker) Unsubscribe(sub Sender, msg *Unsubscribe) {
 		log.Printf("Error unsubscribing: no such subscription %v", msg.Subscription)
 		return
 	}
-	
+
 	delete(br.subscriptions, msg.Subscription)
 
 	if r, ok := br.routes[topic]; !ok {

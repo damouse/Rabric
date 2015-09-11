@@ -136,7 +136,7 @@ func (r *Realm) handleSession(sess Session, details map[string]interface{}) {
 }
 
 // receives incoming messages from sessions
-//TEMP
+// TEMP
 func getMessageSession(sess Session, c <-chan Message) (msg Message, ok bool) {
 	// c := sess.Receive()
 	// TODO: what happens if the realm is closed?
