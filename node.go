@@ -11,7 +11,6 @@ type node struct {
 	closeLock             sync.Mutex
 	sessionOpenCallbacks  []func(uint, string)
 	sessionCloseCallbacks []func(uint, string)
-	realms                map[URI]Realm
     realm                 Realm
 	sessionPdid           map[string]string
 	nodes                 map[string]Session
@@ -23,7 +22,6 @@ type node struct {
 // NewDefaultRouter creates a very basic WAMP router.
 func NewNode() Router {
     node := &node{
-        realms:                make(map[URI]Realm),
         sessionOpenCallbacks:  []func(uint, string){},
         sessionCloseCallbacks: []func(uint, string){},
     }
@@ -36,7 +34,7 @@ func NewNode() Router {
     realm := Realm{URI: "pd"}
     realm.init()
 
-    node.realms["pd"] = realm
+    // node.realms["pd"] = realm
 
     // Experimental single realm testing--- since we're handling the 
     // pubs and subs to begin with 
@@ -100,9 +98,10 @@ func (r *node) Close() error {
 	r.closing = true
 	r.closeLock.Unlock()
 
-	for _, realm := range r.realms {
-		realm.Close()
-	}
+    r.realm.Close()
+	// for _, realm := range r.realms {
+	// 	realm.Close()
+	// }
 
 	return nil
 }
@@ -132,7 +131,7 @@ func (r *node) Accept(client Peer) error {
 
 	// Start listening on the session
     // This will eventually move to the session
-    go Listen(r, &realm, sess)
+    go Listen(r, sess)
 
 	return nil
 }
@@ -144,7 +143,7 @@ func (r *node) Accept(client Peer) error {
 // Spin on a session, wait for messages to arrive. Method does not return
 // until session closes
 // NOTE: realm and details are OLD CODE and should not be construed as permanent fixtures
-func Listen(node *node, realm *Realm, sess Session) {
+func Listen(node *node, sess Session) {
 	c := sess.Receive()
 
 	for {
@@ -206,10 +205,10 @@ func (n *node) Handshake(client Peer) (Session, error) {
 
     // get the appropriate domain
     // realm := n.getDomain(hello.Realm)
-    realm := n.realm
+    // realm := 
 
     // Old implementation: the authentication must occur before fetching the realm
-    welcome, err := realm.handleAuth(client, hello.Details)
+    welcome, err := n.realm.handleAuth(client, hello.Details)
 
     if err != nil {
         abort := &Abort{
@@ -288,8 +287,8 @@ func (n *node) Handle(msg *Message, sess *Session) {
 
         // Get the target realm based on the domain, pass the message along
         // target := n.getDomain(URI(domain))
-        target := n.realm
-        target.handleMessage(*msg, *sess)
+        // target := n.realm
+        n.realm.handleMessage(*msg, *sess)
 
     } else {
         log.Printf("Unable to determine destination from message: %+v", *msg)
@@ -297,7 +296,7 @@ func (n *node) Handle(msg *Message, sess *Session) {
         // Default handler: cant figure out the target realm (pdid not present)
         // realm := n.getDomain(sess.pdid)
         realm := n.realm
-        realm.handleMessage(*msg, *sess)
+        n.realm.handleMessage(*msg, *sess)
     }    
 }
 
