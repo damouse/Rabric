@@ -81,10 +81,10 @@ func NewID() ID {
 	return ID(rand.Int63n(maxId))
 }
 
-func PprintMap(m interface{}) {}
-	if b, err := json.MarshalIndent(m, "", "  "); err != nil {
-		fmt.Println("error:", err)
-	} else {
-		log.Printf("%s: %+v", m.MessageType(), string(b))
-	}
-}
+// func PprintMap(m interface{}) {
+// 	if b, err := json.MarshalIndent(m, "", "  "); err != nil {
+// 		fmt.Println("error:", err)
+// 	} else {
+// 		log.Printf("%s", string(m))
+// 	}
+// }
