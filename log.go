@@ -1,11 +1,11 @@
 package rabric
 
 import (
+	"github.com/op/go-logging"
 	glog "log"
 	"os"
-	"github.com/op/go-logging"
-    // "fmt"
-    "io/ioutil"
+	// "fmt"
+	"io/ioutil"
 )
 
 var (
@@ -21,62 +21,51 @@ type Logger interface {
 
 type noopLogger struct{}
 
-func (n noopLogger) Println(v ...interface{})               {
-    
+func (n noopLogger) Println(v ...interface{}) {
+
 }
 
 func (n noopLogger) Printf(format string, v ...interface{}) {
-    // out.Notice(fmt.Sprintf(format, v...))
+	// out.Notice(fmt.Sprintf(format, v...))
 }
 
-// setup logger for package, noop by default
-func init() {
-	if os.Getenv("DEBUG") != "" {
-		log = glog.New(ioutil.Discard, "", logFlags)
-	} else {
-		log = noopLogger{}
-	}
-
-    // log = noopLogger{}
-}
-
-// Check out their github page for more info on the coloring 
-// Example format string. Everything except the message has a custom color
-// which is dependent on the log level. Many fields have a custom output
-// formatting too, eg. the time returns the hour down to the milli second.
+// Check out their github page for more info on the coloring
 var format = logging.MustStringFormatter(
-    "%{color}%{time:15:04:05.000} %{longfunc} ▶ %{message}",
-
-    // The top one much nicer, but cant get the other damn logger to turn off 
-    // right now 
-    // "%{color}%{time:15:04:05.000} %{longfunc} ▶ %{message}",
+	"%{color}%{time:15:04:05.000} %{longfunc} ▶ %{message}",
 )
 
 func Log() {
-        // log = glog.New(os.Stderr, "", logFlags)
+	// log = glog.New(os.Stderr, "", logFlags)
 
-    // For demo purposes, create two backend for os.Stderr.
-    backend1 := logging.NewLogBackend(os.Stderr, "", 0)
-    // backend2 := logging.NewLogBackend(os.Stderr, "", 0)
+	// For demo purposes, create two backend for os.Stderr.
+	backend1 := logging.NewLogBackend(os.Stderr, "", 0)
+	// backend2 := logging.NewLogBackend(os.Stderr, "", 0)
 
-    // For messages written to backend2 we want to add some additional
-    // information to the output, including the used log level and the name of
-    // the function.
-    formatter := logging.NewBackendFormatter(backend1, format)
+	// For messages written to backend2 we want to add some additional
+	// information to the output, including the used log level and the name of
+	// the function.
+	formatter := logging.NewBackendFormatter(backend1, format)
 
-    // Only errors and more severe messages should be sent to backend1
-    backend1Leveled := logging.AddModuleLevel(backend1)
-    backend1Leveled.SetLevel(logging.DEBUG, "")
+	// Only errors and more severe messages should be sent to backend1
+	backend1Leveled := logging.AddModuleLevel(backend1)
 
-    // Set the backends to be used.
-    logging.SetBackend(backend1Leveled, formatter)
+	if os.Getenv("DEBUG") != "" {
+		backend1Leveled.SetLevel(logging.DEBUG, "")
+		log = glog.New(ioutil.Discard, "", logFlags)
+	} else {
+		backend1Leveled.SetLevel(logging.CRITICAL, "")
+		log = noopLogger{}
+	}
 
-    // out.Debug("debug %s", Password("secret"))
-    // out.Info("info")
-    // out.Notice("notice")
-    // out.Warning("warning")
-    // out.Error("err")
-    // out.Critical("crit")
+	// Set the backends to be used.
+	logging.SetBackend(backend1Leveled, formatter)
+
+	// out.Debug("debug %s", Password("secret"))
+	// out.Info("info")
+	// out.Notice("notice")
+	// out.Warning("warning")
+	// out.Error("err")
+	// out.Critical("crit")
 }
 
 func SetLogger(l Logger) {
@@ -90,14 +79,13 @@ func logErr(err error) error {
 	if l, ok := log.(*glog.Logger); ok {
 		l.Output(2, err.Error())
 	} else {
-		log.Println(err)
+		//log.Println(err)
 	}
 	return err
 }
 
 // New Logging implementation
 var out = logging.MustGetLogger("example")
-
 
 // Password is just an example type implementing the Redactor interface. Any
 // time this is logged, the Redacted() function will be called.

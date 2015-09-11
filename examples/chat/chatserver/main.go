@@ -14,6 +14,6 @@ func main() {
 		Handler: s,
 		Addr:    ":8000",
 	}
-	log.Println("turnpike server starting on port 8000")
+	//log.Println("turnpike server starting on port 8000")
 	log.Fatal(server.ListenAndServe())
 }

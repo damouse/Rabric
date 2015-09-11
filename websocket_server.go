@@ -38,15 +38,15 @@ type WebsocketServer struct {
 
 	// The serializer to use for text frames. Defaults to JSONSerializer.
 	TextSerializer Serializer
-	
+
 	// The serializer to use for binary frames. Defaults to JSONSerializer.
 	BinarySerializer Serializer
 }
 
 // Creates a new WebsocketServer from a map of realms
 func NewWebsocketServer(realms map[string]Realm) (*WebsocketServer, error) {
-	// log.Println("NewWebsocketServer")
-	
+	// //log.Println("NewWebsocketServer")
+
 	r := NewNode()
 
 	for uri, realm := range realms {
@@ -61,7 +61,7 @@ func NewWebsocketServer(realms map[string]Realm) (*WebsocketServer, error) {
 
 // Creates a new WebsocketServer with a single basic realm
 func NewBasicWebsocketServer(uri string) *WebsocketServer {
-	// log.Println("New Basic Node")
+	// //log.Println("New Basic Node")
 	s, _ := NewWebsocketServer(map[string]Realm{uri: {}})
 	return s
 }
@@ -81,7 +81,7 @@ func newWebsocketServer(r Router) *WebsocketServer {
 
 // RegisterProtocol registers a serializer that should be used for a given protocol string and payload type.
 func (s *WebsocketServer) RegisterProtocol(proto string, payloadType int, serializer Serializer) error {
-	log.Println("RegisterProtocol:", proto)
+	//log.Println("RegisterProtocol:", proto)
 
 	if payloadType != websocket.TextMessage && payloadType != websocket.BinaryMessage {
 		return invalidPayload(payloadType)
@@ -109,15 +109,15 @@ func (s *WebsocketServer) GetLocalClient(realm string, details map[string]interf
 
 // ServeHTTP handles a new HTTP connection.
 func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Println("WebsocketServer.ServeHTTP", r.Method, r.RequestURI)
+	//log.Println("WebsocketServer.ServeHTTP", r.Method, r.RequestURI)
 	// TODO: subprotocol?
 	conn, err := s.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("Error upgrading to websocket connection:", err)
+		//log.Println("Error upgrading to websocket connection:", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	s.handleWebsocket(conn)
 }
 

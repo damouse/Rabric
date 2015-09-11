@@ -30,14 +30,14 @@ func NewDefaultBroker() Broker {
 // after the message has been sent to all subscribers.
 func (br *defaultBroker) Publish(pub Sender, msg *Publish) {
 	pubId := NewID()
-	
+
 	evtTemplate := Event{
 		Publication: pubId,
 		Arguments:   msg.Arguments,
 		ArgumentsKw: msg.ArgumentsKw,
 		Details:     make(map[string]interface{}),
 	}
-	
+
 	for id, sub := range br.routes[msg.Topic] {
 		// shallow-copy the template
 		event := evtTemplate
@@ -59,7 +59,7 @@ func (br *defaultBroker) Subscribe(sub Sender, msg *Subscribe) {
 	if _, ok := br.routes[msg.Topic]; !ok {
 		br.routes[msg.Topic] = make(map[ID]Sender)
 	}
-	
+
 	id := NewID()
 	br.routes[msg.Topic][id] = sub
 
@@ -77,22 +77,22 @@ func (br *defaultBroker) Unsubscribe(sub Sender, msg *Unsubscribe) {
 			Error:   ErrNoSuchSubscription,
 		}
 		sub.Send(err)
-		log.Printf("Error unsubscribing: no such subscription %v", msg.Subscription)
+		//log.Printf("Error unsubscribing: no such subscription %v", msg.Subscription)
 		return
 	}
 
 	delete(br.subscriptions, msg.Subscription)
 
 	if r, ok := br.routes[topic]; !ok {
-		log.Printf("Error unsubscribing: unable to find routes for %s topic", topic)
+		//log.Printf("Error unsubscribing: unable to find routes for %s topic", topic)
 	} else if _, ok := r[msg.Subscription]; !ok {
-		log.Printf("Error unsubscribing: %s route does not exist for %v subscription", topic, msg.Subscription)
+		//log.Printf("Error unsubscribing: %s route does not exist for %v subscription", topic, msg.Subscription)
 	} else {
 		delete(r, msg.Subscription)
 		if len(r) == 0 {
 			delete(br.routes, topic)
 		}
 	}
-	
+
 	sub.Send(&Unsubscribed{Request: msg.Request})
 }

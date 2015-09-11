@@ -467,9 +467,9 @@ func (msg *Interrupt) MessageType() MessageType {
 
 ////////////////////////////////////////
 /*
- Begin a whole mess of code we really don't want to get into 
- and which pretty much guarantees we'll have to make substantial changes to 
- Riffle code: the messages don't have a standardized way of returning their 
+ Begin a whole mess of code we really don't want to get into
+ and which pretty much guarantees we'll have to make substantial changes to
+ Riffle code: the messages don't have a standardized way of returning their
  TO identity!
 
  Really, really need this, Short of modifying and standardizing the WAMP changes
@@ -482,7 +482,6 @@ type NoDestinationError string
 func (e NoDestinationError) Error() string {
 	return "cannot determine destination from: " + string(e)
 }
-
 
 // Given a message, return the intended endpoint
 func destination(m *Message) (URI, error) {
@@ -502,7 +501,7 @@ func destination(m *Message) (URI, error) {
 		return msg.Procedure, nil
 
 	default:
-		log.Println("Unhandled message:", msg.MessageType())
+		//log.Println("Unhandled message:", msg.MessageType())
 		return "", NoDestinationError(msg.MessageType())
 	}
 }

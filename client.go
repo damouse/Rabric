@@ -86,7 +86,7 @@ func (c *Client) JoinRealm(realm string, details map[string]interface{}) (map[st
 		c.Peer.Close()
 		return nil, err
 	}
-	
+
 	if msg, err := GetMessageTimeout(c.Peer, c.ReceiveTimeout); err != nil {
 		c.Peer.Close()
 		return nil, err
@@ -216,7 +216,7 @@ func (c *Client) Receive() {
 			if event, ok := c.events[msg.Subscription]; ok {
 				go event.handler(msg.Arguments, msg.ArgumentsKw)
 			} else {
-				log.Println("no handler registered for subscription:", msg.Subscription)
+				//log.Println("no handler registered for subscription:", msg.Subscription)
 			}
 
 		case *Invocation:
@@ -236,14 +236,14 @@ func (c *Client) Receive() {
 			c.notifyListener(msg, msg.Request)
 
 		case *Goodbye:
-			log.Println("client received Goodbye message")
+			//log.Println("client received Goodbye message")
 			break
 
 		default:
-			log.Println("unhandled message:", msg.MessageType(), msg)
+			//log.Println("unhandled message:", msg.MessageType(), msg)
 		}
 	}
-	log.Println("client closed")
+	//log.Println("client closed")
 
 	if c.ReceiveDone != nil {
 		c.ReceiveDone <- true
@@ -255,7 +255,7 @@ func (c *Client) notifyListener(msg Message, requestId ID) {
 	if l, ok := c.listeners[requestId]; ok {
 		l <- msg
 	} else {
-		log.Println("no listener for message", msg.MessageType(), requestId)
+		//log.Println("no listener for message", msg.MessageType(), requestId)
 	}
 }
 
@@ -284,30 +284,30 @@ func (c *Client) handleInvocation(msg *Invocation) {
 			}
 
 			if err := c.Send(tosend); err != nil {
-				log.Println("error sending message:", err)
+				//log.Println("error sending message:", err)
 			}
 		}()
 	} else {
-		log.Println("no handler registered for registration:", msg.Registration)
+		//log.Println("no handler registered for registration:", msg.Registration)
 		if err := c.Send(&Error{
 			Type:    INVOCATION,
 			Request: msg.Request,
 			Details: make(map[string]interface{}),
 			Error:   URI(fmt.Sprintf("no handler for registration: %v", msg.Registration)),
 		}); err != nil {
-			log.Println("error sending message:", err)
+			//log.Println("error sending message:", err)
 		}
 	}
 }
 
 func (c *Client) registerListener(id ID) {
-	log.Println("register listener:", id)
+	//log.Println("register listener:", id)
 	wait := make(chan Message, 1)
 	c.listeners[id] = wait
 }
 
 func (c *Client) waitOnListener(id ID) (msg Message, err error) {
-	log.Println("wait on listener:", id)
+	//log.Println("wait on listener:", id)
 	if wait, ok := c.listeners[id]; !ok {
 		return nil, fmt.Errorf("unknown listener ID: %v", id)
 	} else {

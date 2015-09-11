@@ -10,7 +10,7 @@ import (
 var client *turnpike.Client
 
 func main() {
-	log.Println("Starting Node.")
+	//log.Println("Starting Node.")
 	turnpike.Debug()
 
 	s := turnpike.NewBasicWebsocketServer("crossbardemo")
@@ -20,6 +20,6 @@ func main() {
 		Addr:    ":8000",
 	}
 
-	log.Println("turnpike server starting on port 8000")
+	//log.Println("turnpike server starting on port 8000")
 	log.Fatal(server.ListenAndServe())
 }

@@ -85,6 +85,6 @@ func NewID() ID {
 // 	if b, err := json.MarshalIndent(m, "", "  "); err != nil {
 // 		fmt.Println("error:", err)
 // 	} else {
-// 		log.Printf("%s", string(m))
+// 		//log.Printf("%s", string(m))
 // 	}
 // }

@@ -103,7 +103,7 @@ func (r *defaultRouter) RegisterRealm(uri URI, realm Realm) error {
 }
 
 func (r *defaultRouter) Accept(client Peer) error {
-	log.Println("Accepting a new connection from ", client)
+	//log.Println("Accepting a new connection from ", client)
 
 	if r.closing {
 		logErr(client.Send(&Abort{Reason: ErrSystemShutdown}))
@@ -120,9 +120,9 @@ func (r *defaultRouter) Accept(client Peer) error {
 	if b, err := json.MarshalIndent(msg, "", "  "); err != nil {
 		fmt.Println("error:", err)
 	} else {
-		log.Printf("%s: %+v", msg.MessageType(), string(b))
+		out.Debug("%s: %+v", msg.MessageType(), string(b))
 	}
-	// log.Printf("%s: %+v", msg.MessageType(), msg)
+	// //log.Printf("%s: %+v", msg.MessageType(), msg)
 
 	if hello, ok := msg.(*Hello); !ok {
 		logErr(client.Send(&Abort{Reason: URI("wamp.error.protocol_violation")}))
@@ -166,7 +166,7 @@ func (r *defaultRouter) Accept(client Peer) error {
 			return err
 		}
 
-		log.Println("Established session:", welcome.Id)
+		//log.Println("Established session:", welcome.Id)
 
 		sess := Session{Peer: client, Id: welcome.Id, kill: make(chan URI, 1)}
 
@@ -195,7 +195,7 @@ func (r *defaultRouter) Accept(client Peer) error {
 func (r *defaultRouter) GetLocalPeer(realmURI URI, details map[string]interface{}) (Peer, error) {
 	peerA, peerB := localPipe()
 	sess := Session{Peer: peerA, Id: NewID(), kill: make(chan URI, 1)}
-	log.Println("Established internal session:", sess.Id)
+	//log.Println("Established internal session:", sess.Id)
 
 	if realm, ok := r.realms[realmURI]; ok {
 		// TODO: session open/close callbacks?

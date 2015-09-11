@@ -1,27 +1,27 @@
 package main
 
 import (
-    "log"
-    "net/http"
+	"log"
+	"net/http"
 
-    "github.com/damouse/rabric"
+	"github.com/damouse/rabric"
 )
 
 var client *rabric.Client
 
 func main() {
-    rabric.Log()
+	rabric.Log()
 
-    log.Println("Starting Node.")
-    // rabric.Debug()
+	//log.Println("Starting Node.")
+	// rabric.Debug()
 
-    s := rabric.NewBasicWebsocketServer("pd.damouse")
+	s := rabric.NewBasicWebsocketServer("pd.damouse")
 
-    server := &http.Server{
-        Handler: s,
-        Addr:    ":8000",
-    }
+	server := &http.Server{
+		Handler: s,
+		Addr:    ":8000",
+	}
 
-    log.Println("rabric server starting on port 8000")
-    log.Fatal(server.ListenAndServe())
+	//log.Println("rabric server starting on port 8000")
+	log.Fatal(server.ListenAndServe())
 }
