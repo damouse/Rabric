@@ -179,7 +179,7 @@ func (r *node) Accept(client Peer) error {
 
 	// Start listening on the session
 	go func() {
-		recvSession(&realm, sess, welcome.Details)
+		Listen(&realm, sess, welcome.Details)
 		sess.Close()
 
 		for _, callback := range r.sessionCloseCallbacks {
@@ -197,7 +197,7 @@ func (r *node) Accept(client Peer) error {
 // Spin on a session, wait for messages to arrive. Method does not return
 // until session closes
 // Can you pass in the realm here? The messages may not be intended for this domain!
-func recvSession(realm *Realm, sess Session, details map[string]interface{}) {
+func Listen(realm *Realm, sess Session, details map[string]interface{}) {
 	c := sess.Receive()
 
 	for {
