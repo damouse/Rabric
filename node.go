@@ -123,14 +123,6 @@ func (r *node) Accept(client Peer) error {
 		return err
 	}
 
-	// pprint the incoming details. Still needed?
-	// if b, err := json.MarshalIndent(msg, "", "  "); err != nil {
-	// 	fmt.Println("error:", err)
-	// } else {
-	// 	log.Printf("%s: %+v", msg.MessageType(), string(b))
-	// }
-	// log.Printf("%s: %+v", msg.MessageType(), msg)
-
 	hello, _ := msg.(*Hello)
 
 	// Ensure the message is valid and well constructed
@@ -141,17 +133,8 @@ func (r *node) Accept(client Peer) error {
 		return fmt.Errorf("protocol violation: expected HELLO, received %s", msg.MessageType())
 	}
 
-	// Old implementation
+	// get the appropriate domain
     realm := r.getDomain(hello.Realm)
-	// realm, exists := r.realms[hello.Realm]
-
-	// if !exists {
-	// 	log.Println("Domain not found, creating new domain for ", hello.Realm)
-
-	// 	realm = Realm{URI: hello.Realm}
-	// 	realm.init()
-	// 	r.realms[hello.Realm] = realm
-	// }
 
 	// Old implementation: the authentication must occur before fetching the realm
 	welcome, err := realm.handleAuth(client, hello.Details)
