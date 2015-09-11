@@ -275,17 +275,6 @@ func addAuthMethod(details map[string]interface{}, method string) map[string]int
 	return details
 }
 
-// r := Realm{
-// 	Authenticators: map[string]turnpike.Authenticator{
-// 		"wampcra": turnpike.NewCRAAuthenticatorFactoryFactory(mySecret),
-// 		"ticket": turnpike.NewTicketAuthenticator(myTicket),
-// 		"asdfasdf": myAsdfAuthenticator,
-// 	},
-// 	BasicAuthenticators: map[string]turnpike.BasicAuthenticator{
-// 		"anonymous": nil,
-// 	},
-// }
-
 func (r *Realm) handleMessage(msg Message, sess Session, details map[string]interface{}) {
 
 	log.Printf("[%s] %s: %+v", sess, msg.MessageType(), msg)

@@ -1,9 +1,7 @@
 package rabric
 
 import (
-	// "encoding/json"
 	"fmt"
-	// "github.com/tchap/go-patricia/patricia"
 	"sync"
 	"time"
 )
@@ -18,16 +16,65 @@ type node struct {
 	nodes                 map[string]Session
 	forwarding            map[string]Session
 	permissions           map[string]string
+    agent                 *Client
 }
 
 // NewDefaultRouter creates a very basic WAMP router.
 func NewNode() Router {
-	return &node{
-		realms:                make(map[URI]Realm),
-		sessionOpenCallbacks:  []func(uint, string){},
-		sessionCloseCallbacks: []func(uint, string){},
-	}
+    node := &node{
+        realms:                make(map[URI]Realm),
+        sessionOpenCallbacks:  []func(uint, string){},
+        sessionCloseCallbacks: []func(uint, string){},
+    }
+
+    // Provisioning: this router needs a name
+    // Unhandled case: what to do with routers that start with nothing?
+    // They still have to create a peer (self) and ask for an identity
+
+    // Here we assume *one* router as root and a default pd namespace
+    realm := Realm{URI: "pd"}
+    realm.init()
+
+    node.realms["pd"] = realm
+
+    // peer, ok := node.GetLocalPeer("pd", nil)
+
+    // if peer, ok := node.GetLocalPeer("pd", nil); ok != nil {
+    //     log.Println("Unable to create local session: ", ok)
+    // } else {
+    //     node.agent = peer
+    // }
+
+    node.agent = node.localClient("pd")
+
+    h := func(args []interface{}, kwargs map[string]interface{})  {
+        log.Println("Got a pub on the local session!")
+    }
+
+    // NOTE: this works, but looks like an error with the extraction and parsing code
+    // when published on this endpoint.
+    node.agent.Subscribe("pd/hello", h)
+
+    // What does a provisioning process look like? Where does the router get its name?
+    // what is OUR name?
+
+	return node
 }
+
+func (n *node) localClient(s string) *Client {
+    p := n.getTestPeer()
+
+    // p, _ := n.GetLocalPeer(URI(s), nil)
+
+    client := NewClient(p)
+    client.ReceiveTimeout = 100 * time.Millisecond
+    _, err := client.JoinRealm(s, nil)
+
+    log.Println(err)
+
+    return client
+}
+
 
 func (r *node) AddSessionOpenCallback(fn func(uint, string)) {
 	r.sessionOpenCallbacks = append(r.sessionOpenCallbacks, fn)
@@ -163,6 +210,7 @@ func (r *node) Accept(client Peer) error {
 
 // Spin on a session, wait for messages to arrive. Method does not return
 // until session closes
+// Can you pass in the realm here? The messages may not be intended for this domain!
 func recvSession(realm *Realm, sess Session, details map[string]interface{}) {
 	c := sess.Receive()
 
@@ -174,29 +222,39 @@ func recvSession(realm *Realm, sess Session, details map[string]interface{}) {
 			break
 		}
 
-        //NOTE: there is a serious shortcoming here: How do we deal with WAMP messages with an
+        // NOTE: there is a serious shortcoming here: How do we deal with WAMP messages with an
         // implicit destination? Many of them refer to sessions, but do we want to store the session 
         // IDs with the ultimate PDID target, or just change the protocol?
 
-
         if uri, ok := destination(&msg); ok == nil {
-            log.Println("Domain extracted as ", uri)
+            // log.Println("Domain extracted as ", uri)
 
             // Ensure the construction of the message is valid, extract the endpoint, domain, and action
-            // var domain, action, string
+            domain, action, err := breakdownEndpoint(string(uri))
 
-            cast := string(uri)
-            log.Println(cast)
+            // Return a WAMP error to the user indicating a poorly constructed endpoint
+            if err != nil {
+                log.Println("Misconstructed endpoint. Dont know what to do now!")
+                continue
+            }
+
+            log.Printf("Extracted: %s %s \n", domain, action)
+            log.Println("Current realm: ", realm)
+ 
+            // Permissions
+            // Is downward action? allow
+            // Check permissions cache: if found, allow
+            // Check with bouncer
+
+            // Delivery
+            // Is target a tenant? 
+            // Is target in forwarding tables?
+            // Ask map for next hop
 
 
         } else {
             log.Println("Unable to determine destination from message.")
         }
-       
-
-        // log.Println(msg)
-        // if domain, ok := extractDomain()
-
 
         // if asking a realm to handle the message, assume this is for local delivery
 		realm.handleMessage(msg, sess, details)
@@ -225,9 +283,7 @@ func sessionRecieve(sess Session, c <-chan Message) (msg Message, ok bool) {
 	return msg, true
 }
 
-////////////////////////////////////////
-// Code I haven't yet seen the use for
-////////////////////////////////////////
+
 
 // GetLocalPeer returns an internal peer connected to the specified realm.
 func (r *node) GetLocalPeer(realmURI URI, details map[string]interface{}) (Peer, error) {
@@ -240,10 +296,12 @@ func (r *node) GetLocalPeer(realmURI URI, details map[string]interface{}) (Peer,
 		if details == nil {
 			details = make(map[string]interface{})
 		}
+
 		go realm.handleSession(sess, details)
 	} else {
 		return nil, NoSuchRealmError(realmURI)
 	}
+
 	return peerB, nil
 }
 
@@ -251,4 +309,23 @@ func (r *node) getTestPeer() Peer {
 	peerA, peerB := localPipe()
 	go r.Accept(peerA)
 	return peerB
+}
+
+////////////////////////////////////////
+// Very new code
+////////////////////////////////////////
+
+// Handle a new message
+func (n *node) Handle(msg *Message) {
+
+}
+
+// Return true or false based on the message and the session which sent the messate
+func (n *node) Permitted(msg *Message, sess *Session) bool {
+    return true
+}
+
+// returns the pdid of the next hop on the path for the given message
+func (n *node) Route(msg *Message) string {
+    return ""
 }

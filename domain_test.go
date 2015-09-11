@@ -37,6 +37,24 @@ func TestExtractDomain(t *testing.T) {
 func TestExtractAction(t *testing.T) {
     Convey("Single actions can be extracted", t, func() {
         s, _ := extractActions("pd/alpha")
-        So(s, ShouldEqual, "alpha")
+        So(s, ShouldEqual, "/alpha")
     })
+}
+
+func TestExtractBoth(t *testing.T) {
+    Convey("Valid endpoints", t, func() {
+        Convey("With one domain can be extracted", func() {
+            e, a, _ := breakdownEndpoint("pd/alpha")
+
+            So(e, ShouldEqual, "pd")
+            So(a, ShouldEqual, "/alpha")
+        })
+
+        Convey("With a subdonmain can be extracted", func() {
+            e, a, _ := breakdownEndpoint("pd.x/alpha")
+
+            So(e, ShouldEqual, "pd.x")
+            So(a, ShouldEqual, "/alpha")
+        })
+    })   
 }

@@ -76,14 +76,17 @@ func (c *Client) JoinRealm(realm string, details map[string]interface{}) (map[st
 	if details == nil {
 		details = map[string]interface{}{}
 	}
+
 	details["roles"] = clientRoles()
 	if c.Auth != nil && len(c.Auth) > 0 {
 		return c.joinRealmCRA(realm, details)
 	}
+
 	if err := c.Send(&Hello{Realm: URI(realm), Details: details}); err != nil {
 		c.Peer.Close()
 		return nil, err
 	}
+	
 	if msg, err := GetMessageTimeout(c.Peer, c.ReceiveTimeout); err != nil {
 		c.Peer.Close()
 		return nil, err

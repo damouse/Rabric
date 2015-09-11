@@ -33,7 +33,7 @@ func extractActions(s string) (string, error) {
     // Is this a bug? Intentional? Should be considered as part of the action?
     // pd.damouse/
 
-    i += 1
+    // i += 1
     return s[i:], nil
 }
 
@@ -45,8 +45,8 @@ func extractDomain(s string) (string, error) {
 
 // breaks down an endpoint into domain and action, or returns an error
 func breakdownEndpoint(s string) (string, string, error) {
-    d, dok := extractDomain(s)
-    a, aok := extractActions(s)
+    d, _ := extractDomain(s)
+    a, _ := extractActions(s)
 
     return d, a, nil
 }

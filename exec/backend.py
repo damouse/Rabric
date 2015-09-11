@@ -30,7 +30,7 @@ class Component(ApplicationSession):
         print "session attached"
 
         yield self.register(callAdd, 'pd.damouse/add')
-        yield self.subscribe(pub, 'pd.damouse.pub')
+        yield self.subscribe(pub, 'pd.damouse/pub')
 
         print "procedures registered"
 

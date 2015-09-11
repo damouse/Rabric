@@ -36,6 +36,7 @@ func (br *defaultBroker) Publish(pub Sender, msg *Publish) {
 		ArgumentsKw: msg.ArgumentsKw,
 		Details:     make(map[string]interface{}),
 	}
+	
 	for id, sub := range br.routes[msg.Topic] {
 		// shallow-copy the template
 		event := evtTemplate
@@ -57,6 +58,7 @@ func (br *defaultBroker) Subscribe(sub Sender, msg *Subscribe) {
 	if _, ok := br.routes[msg.Topic]; !ok {
 		br.routes[msg.Topic] = make(map[ID]Sender)
 	}
+	
 	id := NewID()
 	br.routes[msg.Topic][id] = sub
 
@@ -77,6 +79,7 @@ func (br *defaultBroker) Unsubscribe(sub Sender, msg *Unsubscribe) {
 		log.Printf("Error unsubscribing: no such subscription %v", msg.Subscription)
 		return
 	}
+	
 	delete(br.subscriptions, msg.Subscription)
 
 	if r, ok := br.routes[topic]; !ok {
