@@ -10,8 +10,10 @@ import (
 var client *rabric.Client
 
 func main() {
+    rabric.Log()
+
     log.Println("Starting Node.")
-    rabric.Debug()
+    // rabric.Debug()
 
     s := rabric.NewBasicWebsocketServer("pd.damouse")
 

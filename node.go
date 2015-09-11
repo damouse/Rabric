@@ -51,7 +51,7 @@ func NewNode() Router {
     node.agent = node.localClient("pd")
 
     h := func(args []interface{}, kwargs map[string]interface{})  {
-        log.Println("Got a pub on the local session!")
+        out.Warning("Got a pub on the local session!")
     }
 
     // NOTE: this works, but looks like an error with the extraction and parsing code
@@ -73,7 +73,7 @@ func (n *node) localClient(s string) *Client {
     client.ReceiveTimeout = 100 * time.Millisecond
     _, err := client.JoinRealm(s, nil)
 
-    log.Println("Error when creating new client: ", err)
+    out.Error("Error when creating new client: ", err)
 
     return client
 }
@@ -119,7 +119,7 @@ func (r *node) Accept(client Peer) error {
     }
 
 	// sess := Session{Peer: client, Id: welcome.Id, pdid: hello.Realm, kill: make(chan URI, 1)}
-    log.Println("Established session: ", sess.pdid)
+    out.Notice("Established session: ", sess.pdid)
 
 	// Meta level start events
 	// for _, callback := range r.sessionOpenCallbacks {
@@ -127,7 +127,7 @@ func (r *node) Accept(client Peer) error {
 	// }
 
     // OLD CODE: need the original realm to handle issues with default 
-    realm := r.getDomain(sess.pdid)
+    // realm := r.getDomain(sess.pdid)
 
 	// Start listening on the session
     // This will eventually move to the session
@@ -238,7 +238,7 @@ func (n *node) Handshake(client Peer) (Session, error) {
         return sess, err
     }
 
-    log.Println("Established session: ", hello.Realm)
+    out.Notice("Established session: ", hello.Realm)
     // log.Println("Established session: ", welcome.Id)
 
     sess = Session{Peer: client, Id: welcome.Id, pdid: hello.Realm, kill: make(chan URI, 1)}
@@ -271,33 +271,27 @@ func (n *node) Handle(msg *Message, sess *Session) {
 
         // Return a WAMP error to the user indicating a poorly constructed endpoint
         if err != nil {
-            log.Println("Misconstructed endpoint. Dont know what to do now!")
+            out.Error("Misconstructed endpoint. Dont know what to do now!")
             return
         }
 
         // log.Printf("Extracted: %s %s \n", domain, action)
 
         if !n.Permitted(msg, sess) {
-            log.Println("Operation not permitted! TODO: return an error here!")
+            out.Error("Operation not permitted! TODO: return an error here!")
             return
         }
 
         // Delivery (deferred)
         // route = n.Route(msg)
 
-        // Get the target realm based on the domain, pass the message along
-        // target := n.getDomain(URI(domain))
-        // target := n.realm
-        n.realm.handleMessage(*msg, *sess)
-
     } else {
-        log.Printf("Unable to determine destination from message: %+v", *msg)
-
-        // Default handler: cant figure out the target realm (pdid not present)
-        // realm := n.getDomain(sess.pdid)
-        realm := n.realm
-        n.realm.handleMessage(*msg, *sess)
+        // log.Printf("Unable to determine destination from message: %+v", *msg)
+        out.Notice("Unable to determine destination from message: %+v", *msg)
+        // n.realm.handleMessage(*msg, *sess)
     }    
+
+    n.realm.handleMessage(*msg, *sess)
 }
 
 // Return true or false based on the message and the session which sent the messate
@@ -324,19 +318,19 @@ func (n *node) CoreReady() bool {
 
 // Creates and/or returns a realm on the given node. 
 // Not safe
-func (n *node) getDomain(name URI) Realm {
-    realm, exists := n.realms[name]
+// func (n *node) getDomain(name URI) Realm {
+//     realm, exists := n.realms[name]
 
-    if !exists {
-        log.Println("Domain not found, creating new domain for ", name)
+//     if !exists {
+//         log.Println("Domain not found, creating new domain for ", name)
 
-        realm = Realm{URI: name}
-        realm.init()
-        n.realms[name] = realm
-    }
+//         realm = Realm{URI: name}
+//         realm.init()
+//         n.realms[name] = realm
+//     }
 
-    return realm
-}
+//     return realm
+// }
 
 
 ////////////////////////////////////////
@@ -347,7 +341,7 @@ func (n *node) getDomain(name URI) Realm {
 func (r *node) GetLocalPeer(realmURI URI, details map[string]interface{}) (Peer, error) {
     peerA, peerB := localPipe()
     sess := Session{Peer: peerA, Id: NewID(), kill: make(chan URI, 1)}
-    log.Println("Established internal session:", sess.Id)
+    out.Notice("Established internal session:", sess.Id)
 
     // TODO: session open/close callbacks?
     if details == nil {
@@ -355,18 +349,6 @@ func (r *node) GetLocalPeer(realmURI URI, details map[string]interface{}) (Peer,
     }
 
     go r.realm.handleSession(sess, details)
-
-    // if realm, ok := r.realms[realmURI]; ok {
-    //     // TODO: session open/close callbacks?
-    //     if details == nil {
-    //         details = make(map[string]interface{})
-    //     }
-
-    //     go realm.handleSession(sess, details)
-    // } else {
-    //     return nil, NoSuchRealmError(realmURI)
-    // }
-
     return peerB, nil
 }
 

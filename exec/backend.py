@@ -48,7 +48,8 @@ class Component(ApplicationSession):
 
 if __name__ == '__main__':
     runner = ApplicationRunner(
-        environ.get("AUTOBAHN_DEMO_ROUTER", "ws://127.0.0.1:8000/ws"),
+        "ws://127.0.0.1:8000/ws",
+        # "ws://paradrop.io:9000/ws",
         u"pd.damouse",
         debug_wamp=False,  # optional; log many WAMP details
         debug=False,  # optional; log even more details
