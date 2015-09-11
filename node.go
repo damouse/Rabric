@@ -285,6 +285,8 @@ func (n *node) Handle(msg *Message, sess *Session) {
         // Delivery (deferred)
         // route = n.Route(msg)
 
+        n.CoreReady()
+
     } else {
         // log.Printf("Unable to determine destination from message: %+v", *msg)
         out.Notice("Unable to determine destination from message: %+v", *msg)
@@ -313,24 +315,9 @@ func (n *node) Route(msg *Message) string {
 
 // Returns true if core appliances connected
 func (n *node) CoreReady() bool {
+    out.Warning("Core status: ", n.realm)
     return true
 }
-
-// Creates and/or returns a realm on the given node. 
-// Not safe
-// func (n *node) getDomain(name URI) Realm {
-//     realm, exists := n.realms[name]
-
-//     if !exists {
-//         log.Println("Domain not found, creating new domain for ", name)
-
-//         realm = Realm{URI: name}
-//         realm.init()
-//         n.realms[name] = realm
-//     }
-
-//     return realm
-// }
 
 
 ////////////////////////////////////////
