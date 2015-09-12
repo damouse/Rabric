@@ -43,6 +43,8 @@ class Component(ApplicationSession):
 
         yield self.subscribe(pub, 'pd.damouse/pub')
 
+        # Testing internal no-register
+
         print "procedures registered"
 
 

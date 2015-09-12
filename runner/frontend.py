@@ -9,6 +9,10 @@ from twisted.internet.defer import inlineCallbacks
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 
 
+def pong():
+    print 'Pong! Server was able to route the message in!'
+
+
 class Component(ApplicationSession):
 
     """
@@ -25,6 +29,9 @@ class Component(ApplicationSession):
 
         print 'Asking the other guy to die'
         res = yield self.call('pd.damouse/kill')
+
+        yield self.subscribe(pong, 'pd.damouse/pong')
+        yield self.publish('pd.damouse/ping')
 
         self.leave()
 

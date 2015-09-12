@@ -335,3 +335,10 @@ func (r *Realm) handleMessage(msg Message, sess Session) {
 	}
 
 }
+
+// Dump the contents of the realm
+func (r *Realm) dump() string {
+	ret := "\nBROKER:\n" + r.Broker.dump()
+	ret += "\nDEALER:\n" + r.Dealer.dump()
+	return ret
+}

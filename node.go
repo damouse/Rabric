@@ -71,9 +71,9 @@ func (n *node) localClient(s string) *Client {
 
 	client := NewClient(p)
 	client.ReceiveTimeout = 100 * time.Millisecond
-	_, err := client.JoinRealm(s, nil)
-
-	out.Error("Error when creating new client: ", err)
+	if _, err := client.JoinRealm(s, nil); err != nil {
+		out.Error("Error when creating new client: ", err)
+	}
 
 	return client
 }
@@ -262,10 +262,13 @@ func (n *node) Handle(msg *Message, sess *Session) {
 	// implicit destination? Many of them refer to sessions, but do we want to store the session
 	// IDs with the ultimate PDID target, or just change the protocol?
 
+	m := *msg
+	out.Debug("[%s] %s: %+v", *sess, m.MessageType(), *msg)
+
 	if uri, ok := destination(msg); ok == nil {
 		// Ensure the construction of the message is valid, extract the endpoint, domain, and action
-		_, _, err := breakdownEndpoint(string(uri))
-		//log.Printf("", action)
+		// domain, action, err := breakdownEndpoint(string(uri))
+		_, action, err := breakdownEndpoint(string(uri))
 
 		// Return a WAMP error to the user indicating a poorly constructed endpoint
 		if err != nil {
@@ -273,21 +276,30 @@ func (n *node) Handle(msg *Message, sess *Session) {
 			return
 		}
 
-		// //log.Printf("Extracted: %s %s \n", domain, action)
+		// out.Debug("Extracted: %s %s \n", domain, action)
 
 		if !n.Permitted(msg, sess) {
 			out.Error("Operation not permitted! TODO: return an error here!")
 			return
 		}
 
+		if action == "/pong" {
+			out.Critical("Trying session lookup...")
+
+			// Try and check if the given endpoint is registered.
+			// For now, dump the realm
+			s := n.realm.dump()
+			out.Critical(s)
+		}
+
 		// Delivery (deferred)
 		// route = n.Route(msg)
 
-		n.CoreReady()
+		// n.CoreReady()
 
 	} else {
 		// //log.Printf("Unable to determine destination from message: %+v", *msg)
-		out.Notice("Unable to determine destination from message: %+v", *msg)
+		out.Debug("Unable to determine destination from message: %+v", *msg)
 		// n.realm.handleMessage(*msg, *sess)
 	}
 

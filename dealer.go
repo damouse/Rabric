@@ -1,5 +1,7 @@
 package rabric
 
+import "strconv"
+
 // A Dealer routes and manages RPC calls to callees.
 type Dealer interface {
 	// Register a procedure on an endpoint
@@ -12,6 +14,8 @@ type Dealer interface {
 	Yield(Sender, *Yield)
 	// Handle an ERROR message from an invocation
 	Error(Sender, *Error)
+	dump() string
+	hasRegistration(string) bool
 }
 
 type RemoteProcedure struct {
@@ -165,4 +169,38 @@ func (d *defaultDealer) Error(peer Sender, msg *Error) {
 			//log.Printf("returned ERROR %v to caller as ERROR %v", msg.Request, callID)
 		}
 	}
+}
+
+func (d *defaultDealer) dump() string {
+	ret := "  functions:"
+
+	for k, v := range d.procedures {
+		ret += "\n\t" + strconv.FormatUint(uint64(k), 16) + ": " + string(v.Procedure)
+	}
+
+	ret += "\n  registrations:"
+
+	for k, v := range d.registrations {
+		ret += "\n\t" + string(k) + ": " + strconv.FormatUint(uint64(v), 16)
+	}
+
+	ret += "\n  calls:"
+
+	for k, _ := range d.calls {
+		ret += "\n\t" + strconv.FormatUint(uint64(k), 16) + ": (sender)"
+	}
+
+	ret += "\n  invocations:"
+
+	for k, v := range d.invocations {
+		ret += "\n\t" + strconv.FormatUint(uint64(k), 16) + ": " + strconv.FormatUint(uint64(v), 16)
+	}
+
+	return ret
+}
+
+// Testing. Not sure if this works 100 or not
+func (d *defaultDealer) hasRegistration(s string) bool {
+	_, exists := d.registrations[URI(s)]
+	return exists
 }

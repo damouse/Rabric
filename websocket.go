@@ -45,6 +45,7 @@ func newWebsocketPeer(url, protocol, origin string, serializer Serializer, paylo
 		serializer:  serializer,
 		payloadType: payloadType,
 	}
+
 	go ep.run()
 
 	return ep, nil

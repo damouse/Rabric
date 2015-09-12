@@ -1,5 +1,7 @@
 package rabric
 
+import "strconv"
+
 // A broker handles routing EVENTS from Publishers to Subscribers.
 type Broker interface {
 	// Publishes a message to all Subscribers.
@@ -8,6 +10,8 @@ type Broker interface {
 	Subscribe(Sender, *Subscribe)
 	// Unsubscribes from messages on a URI.
 	Unsubscribe(Sender, *Unsubscribe)
+	dump() string
+	hasSubscription(string) bool
 }
 
 // A super simple broker that matches URIs to Subscribers.
@@ -95,4 +99,30 @@ func (br *defaultBroker) Unsubscribe(sub Sender, msg *Unsubscribe) {
 	}
 
 	sub.Send(&Unsubscribed{Request: msg.Request})
+}
+
+func (b *defaultBroker) dump() string {
+	ret := "  routes:"
+
+	for k, v := range b.routes {
+		ret += "\n\t" + string(k)
+
+		for x, _ := range v {
+			ret += "\n\t  " + strconv.FormatUint(uint64(x), 16)
+		}
+	}
+
+	ret += "\n  subs:"
+
+	for k, v := range b.subscriptions {
+		ret += "\n\t" + strconv.FormatUint(uint64(k), 16) + ": " + string(v)
+	}
+
+	return ret
+}
+
+// Testing. Not sure if this works 100 or not
+func (b *defaultBroker) hasSubscription(s string) bool {
+	_, exists := b.routes[URI(s)]
+	return exists
 }
